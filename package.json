@@ -1,0 +1,106 @@
+{
+  "name": "nifti",
+  "productName": "NIFTIViewer",
+  "version": "0.0.1",
+  "description": "",
+  "main": "development/main.js",
+  "scripts": {
+    "start": "node_modules/.bin/electron .",
+    "build:renderer:production": "webpack -w --env production --config webpack.config.js",
+    "build:main:production": "webpack -w --env production --config webpack.main.config.js",
+    "build:renderer": "webpack -w --env development --config webpack.config.js",
+    "build:main": "webpack -w --env development --config webpack.main.config.js",
+    "script-exe": "./dist/script.exe ./samples/wt1.nii '{\"smooth\":500,\"threshold\":50,\"shouldThreshold\":true,\"reductionFactor\":0.5}'",
+    "script": "C:\\Python27\\python.exe script.py ./samples/wt1.nii '{\"smooth\":500,\"threshold\":50,\"shouldThreshold\":true,\"reductionFactor\":0.5}'"
+  },
+  "homepage": "https://google.com",
+  "repository": "",
+  "keywords": [],
+  "author": "Tzahi Nemet",
+  "license": "",
+  "devDependencies": {
+    "@babel/preset-env": "^7.4.3",
+    "@material-ui/core": "^3.9.3",
+    "@material-ui/icons": "^3.0.2",
+    "@material-ui/lab": "^3.0.0-alpha.30",
+    "@tweenjs/tween.js": "^17.1.0",
+    "@types/chai": "^4.0.2",
+    "@types/electron": "^1.6.10",
+    "@types/mocha": "^2.2.41",
+    "@types/node": "^7.0.39",
+    "@types/react-transition-group": "^2.0.16",
+    "@types/three": "^0.93.27",
+    "awesome-typescript-loader": "5.0.0",
+    "babel-core": "^6.25.0",
+    "babel-loader": "^7.1.1",
+    "babel-preset-env": "^1.6.0",
+    "babel-preset-es2015": "^6.24.1",
+    "clean-webpack-plugin": "^0.1.16",
+    "copy-webpack-plugin": "^4.0.1",
+    "css-loader": "^0.28.4",
+    "electron": "4.1.3",
+    "electron-builder": "20.39.0",
+    "file-loader": "1.1.11",
+    "font-loader": "^0.1.2",
+    "fs": "0.0.1-security",
+    "fs-extra": "^7.0.1",
+    "html-webpack-plugin": "3.2.0",
+    "math-float32-to-binary-string": "^1.0.0",
+    "nifti-reader-js": "^0.5.4",
+    "path": "^0.12.7",
+    "ramda": "^0.26.1",
+    "react": "16.4.2",
+    "react-dom": "^16.3.2",
+    "react-redux": "^5.0.7",
+    "react-spinkit": "^3.0.0",
+    "react-transition-group": "2.4.0",
+    "redux": "^4.0.0",
+    "resize-observer-polyfill": "^1.5.1",
+    "rxjs": "^5.4.2",
+    "source-map-loader": "^0.2.1",
+    "style-loader": "0.21.0",
+    "three": "0.103.0",
+    "ts-loader": "4.2.0",
+    "tween.js": "^16.6.0",
+    "typescript": "^2.4.2",
+    "uglify-es": "3.3.9",
+    "uglifyjs-webpack-plugin": "1.2.5",
+    "uniqid": "^4.1.1",
+    "url": "^0.11.0",
+    "vtk.js": "https://github.com/WildHorse19/vtk-js",
+    "webpack": "4.7.0",
+    "webpack-cli": "^3.0.8",
+    "webpack-dev-server": "^3.2.1"
+  },
+  "dependencies": {},
+  "build": {
+    "appId": "com.nifti.viewer",
+    "directories": {
+      "output": "output"
+    },
+    "copyright": "Copyright 2019 Tzahi Nemet",
+    "asar": {
+      "smartUnpack": true
+    },
+    "asarUnpack": [
+      "**/production/script.exe",
+      "**/production/script.py"
+    ],
+    "extraFiles": [],
+    "files": [
+      "production/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "./app/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "./app/assets/icon.ico",
+      "uninstallerIcon": "./app/assets/icon.ico"
+    }
+  }
+}
