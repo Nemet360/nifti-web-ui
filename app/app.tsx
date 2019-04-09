@@ -1,20 +1,21 @@
+//yarn add -D https://github.com/WildHorse19/vtk-js
 import './assets/fonts/index.css'; 
 import './assets/styles.css'; 
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Store } from './types';
 import { reducer, defaultProps } from './reducer';
-import { path, isEmpty, isNil } from 'ramda';
+import { isEmpty, isNil } from 'ramda';
 import { Provider, connect } from "react-redux";
 import { createStore } from "redux"; 
 import { Component } from "react"; 
 import { ipcRenderer, remote } from 'electron';
-import { Subscription, Observable } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { fromEvent } from 'rxjs/observable/fromEvent'; 
 import Button from '@material-ui/core/Button';
 import Settings from '@material-ui/icons/Settings';
 import * as THREE from "three";
-import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Box3, Mesh, MeshPhysicalMaterial, DoubleSide } from 'three';
+import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide } from 'three';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
@@ -24,14 +25,17 @@ import Slider from '@material-ui/lab/Slider';
 import Popover from '@material-ui/core/Popover';
 import IconButton from '@material-ui/core/IconButton';
 import Checkbox from '@material-ui/core/Checkbox';
-import { of } from 'rxjs/observable/of';
-import { mergeMap, tap } from 'rxjs/operators';
-//yarn add -D https://github.com/WildHorse19/vtk-js
 import cubes from 'vtk.js/Sources/Filters/General/ImageMarchingCubes';
+import { readNIFTIFile } from './utils/readNIFTIFile';
+import { getObjectCenter } from './utils/getObjectCenter';
+import { replaceSceneObject } from './utils/replaceSceneObject';
+import { attachDispatchToProps } from './utils/attachDispatchToProps';
+import { getBrains } from './utils/getBrains';
+import { exportStl } from './utils/exportStl';
+import { exportJSON } from './utils/exportJSON';
+import { exportObj } from './utils/exportObj';
+import { initLights } from './utils/initLights';
 const { vtkImageMarchingCubes } = cubes;
-const fs = remote.require('fs');
-const uniq = require("uniqid");
-const nifti = require("nifti-reader-js");
 const Spinner = require('react-spinkit');
 
 window['THREE'] = THREE;
@@ -40,129 +44,6 @@ require("three/examples/js/controls/OrbitControls");
 require("./STLLoader");
 require("./STLExporter");
 require("./OBJExporter");
-require("./ColladaExporter");
-
-
-
-const makeSlice = (file, start, length) => {
-    
-    return file.slice(start, start + length);
-
-}
-
-
-
-const readNIFTI = (data) => {
-
-    let niftiHeader, niftiImage;
-
-    if (nifti.isCompressed(data)) {
-        data = nifti.decompress(data);
-    }
-
-    if (nifti.isNIFTI(data)) {
-        niftiHeader = nifti.readHeader(data);
-        niftiImage = nifti.readImage(niftiHeader, data);
-    }
-
-    let typedData;
-
-    if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT8) {
-        typedData = new Uint8Array(niftiImage);
-    } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT16) {
-        typedData = new Int16Array(niftiImage);
-    } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT32) {
-        typedData = new Int32Array(niftiImage);
-    } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_FLOAT32) {
-        typedData = new Float32Array(niftiImage);
-    } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_FLOAT64) {
-        typedData = new Float64Array(niftiImage);
-    } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT8) {
-        typedData = new Int8Array(niftiImage);
-    } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT16) {
-        typedData = new Uint16Array(niftiImage);
-    } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT32) {
-        typedData = new Uint32Array(niftiImage);
-    } else {
-        return undefined;
-    }
-
-    return { niftiHeader, niftiImage, typedData };
-
-}
-
-
-
-const readNIFTIFile = file => (
-
-    new Promise(
-
-        resolve => {
-        
-            let start = 0;
-
-            let blob = makeSlice(file, 0, file.size);
-
-            let reader = new FileReader();
-
-            reader.onloadend = function (evt) {
-
-                if (evt.target['readyState'] === FileReader.DONE) {
-
-                    const result = readNIFTI(evt.target['result']);
-
-                    resolve(result);
-
-                }
-
-            };
-
-            reader.readAsArrayBuffer(blob);
-
-        }
-
-    )
-
-)
-
-
-
-const getObjectCenter = ( object : Mesh ) : Vector3 => {
-
-    const boundingBox = new Box3().setFromObject(object);
-
-    const centerX = (boundingBox.max.x + boundingBox.min.x)/2;
-
-    const centerY = (boundingBox.max.y + boundingBox.min.y)/2;
-
-    const centerZ = (boundingBox.max.z + boundingBox.min.z)/2;
-
-    return new Vector3(centerX,centerY,centerZ);
-
-} 
-
-
-
-const replaceSceneObject = (scene:Scene, object, withWhat:Mesh) : void => {
-
-    if(object && object.geometry){
-       object.geometry.dispose();
-    }
-
-    if(object){
-       scene.remove(object);
-    }
-
-    object = undefined;
-
-    scene.add(withWhat); 
-
-}
-
-
-
-
-const attachDispatchToProps = (dispatch,props) => ({...props,dispatch}); 
 
 
 
@@ -173,10 +54,7 @@ interface AppState{}
 @connect(store => store, attachDispatchToProps)
 export class App extends Component<Store,AppState>{
     anchor:HTMLElement
-    reader:Subscription
-    resize:Subscription 
-    data:Subscription 
-
+    resize:Subscription
     menu:HTMLElement
     input:HTMLInputElement
     container:HTMLElement
@@ -188,46 +66,66 @@ export class App extends Component<Store,AppState>{
     localPlane:any
 
 
+
     constructor(props){ 
+
         super(props);
+
         this.state = {};
+
     } 
+
+
+
+    openSaveDialog = (extension:string) : void => {
+
+        const object = getBrains(this.scene) as Mesh;
+
+        this.closeExportMenu(null);
+
+        if(isNil(object)){ 
+            this.emptySceneError();
+            return; 
+        }
+
+        remote.dialog.showSaveDialog(
+            { 
+                title:'Save', 
+                filters:[{ name: `.${extension}`, extensions: [extension] }] 
+            }, 
+            result => {
+
+                if(isNil(result)){ return; }
+
+                this.props.dispatch({type:"loading", load:true});
+
+                if(extension==="stl"){
+
+                    exportStl(this.scene, result);
+
+                }else if(extension==="json"){
+
+                    exportJSON(this.scene, result);
+
+                }else if(extension==="obj"){
+
+                    exportObj(this.scene, result);
+
+                }
+
+                this.props.dispatch({type:"loading", load:false});
+
+            }
+        );
+
+    }
 
 
 
     componentDidMount(){
 
-
         this.resize = fromEvent(window, "resize").subscribe(this.onResize);
 
-        this.reader = fromEvent(ipcRenderer, "read:nifti", (event,filename) => filename).subscribe(this.onData);
-
-        
-        this.data = fromEvent(ipcRenderer, "read:file", (event,data) => data).subscribe(acc => {
-
-            console.log(acc.length);
-    
-            this.props.dispatch({ type:"loading", load:false });
-    
-            if(isEmpty(acc)){ 
-                this.showError("File empty");
-                return; 
-            }
-    
-            let loader = new THREE["STLLoader"]();
-    
-            try{
-    
-                loader.loadText(acc, this.onMeshLoaded);
-                
-            }catch(e){
-    
-                this.showError("File empty");
-    
-            }
-
-        });
-        
         this.boundingBox = this.container.getBoundingClientRect();
 
         this.props.dispatch({
@@ -246,258 +144,7 @@ export class App extends Component<Store,AppState>{
 
     componentWillUnmount(){
 
-        this.reader.unsubscribe();
-
-        this.data.unsubscribe();
-
         this.resize.unsubscribe();
-
-    }
-
-
-
-    onResize = e => {
-
-        this.boundingBox = this.container.getBoundingClientRect();
-
-        const { width, height } = this.boundingBox;
-
-        this.camera.aspect = width / height;
-    
-        this.camera.updateProjectionMatrix(); 
-                
-        this.renderer.setSize( width , height );  
-        
-        this.props.dispatch({
-            type:"multiple",
-            load:[
-                {type:"width", load:width},
-                {type:"height", load:height}
-            ]
-        });
-
-    }
-
-
-
-    getBrains = () => {
-
-        const object = this.scene.children.find(mesh => mesh.userData.brain);
-
-        return object;
-
-    }
-
-
-
-    onSlice = (e,v) => {
-
-        this.localPlane.constant = v;
-
-        this.props.dispatch({type:"slice", load:v});
-
-    }
-
-
-
-    onMeshLoaded = geometry => {
-
-        const colors = [];
-
-        for(let i=0; i < geometry.attributes.position.count; i++){
-
-            colors.push( 
-                33, //Math.round( Math.random() * 255 ), 
-                156, //Math.round( Math.random() * 255 ), 
-                55 //Math.round( Math.random() * 255 )
-            );
-
-        }
-
-        const typed_colors = new Uint8Array(colors);
-       
-        geometry.addAttribute( 'color', new THREE.BufferAttribute( typed_colors, 3, true) );
-
-
-
-        //const tempGeo = new THREE.Geometry().fromBufferGeometry(geometry);
-
-        //tempGeo.mergeVertices();
-        //tempGeo.computeVertexNormals();
-        //tempGeo.computeFaceNormals();
-        
-        //geometry = new THREE.BufferGeometry().fromGeometry(tempGeo);
-
-
-        const localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
-
-        this.localPlane = localPlane;
-
-        const material = new MeshPhysicalMaterial({
-            clippingPlanes: [ localPlane ],
-            vertexColors: THREE.VertexColors, //color: "#ec8080",
-            //metalness: 0.5,
-            //roughness: 0.5,
-            //clearCoat: 0.5,
-            //clearCoatRoughness: 0.5,
-            //reflectivity: 0.5,
-            side: DoubleSide,
-            transparent: false, 
-            opacity: 1,
-            clipShadows: true,
-            //depthTest: true
-        });
-
-        //geometry.computeVertexNormals();
-
-        const mesh = new THREE.Mesh(geometry, material);
-
-        mesh.castShadow = true;
-
-        mesh.receiveShadow = true;
-
-        mesh.userData.brain = true;
-
-        mesh.frustumCulled = false;
-
-        mesh.geometry.computeBoundingBox();
-
-        const wd = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x;
-
-        const hg = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
-
-        const max_y = mesh.geometry.boundingBox.max.y;
-
-        this.localPlane.constant = max_y;
-
-        this.props.dispatch({
-            type:"multiple",
-            load:[
-                {type:"slice", load:max_y},
-                {type:"max", load:max_y},
-                {type:"min", load:0}
-            ]
-        });
-
-        //const bbox = new THREE['BoundingBoxHelper']( mesh );
-
-        //bbox.update();
-
-        //this.scene.add( bbox );
-
-        const center = getObjectCenter(mesh);
-
-        this.camera.position.x = wd*2;
-        this.camera.position.y = hg*2;
-        this.camera.position.z = 0;
-
-        this.controls.target.set(center.x, center.y, center.z);
-
-        this.camera.lookAt(this.controls.target);
-
-        //console.log(mesh.localToWorld( mesh.position ));
-
-        const object = this.getBrains();
-
-        replaceSceneObject(this.scene, object, mesh); 
-       
-        this.renderer.render(this.scene, this.camera);
-
-    }
-
-
-
-    showError = (e) => {
-
-        this.props.dispatch({
-            type:"error", 
-            load:"Unable to load model. Try different settings or contact support. "
-        });
-
-        this.props.dispatch({ type:"loading", load:false });
-
-    }
-
-
-
-    onData = (data:string) => {
-        
-        if(isEmpty(data)){ 
-            this.showError(data);
-            return; 
-        }
-
-        let loader = new THREE["STLLoader"]();
-
-        try{
-
-            loader.loadText(data, this.onMeshLoaded);
-            
-        }catch(e){
-
-            this.showError(JSON.stringify(e));
-
-        }
-
-        this.props.dispatch({ type:"loading", load:false });
-
-    }
-
-    
-
-    update = () => {
-
-        this.boundingBox = this.container.getBoundingClientRect();
-        
-        this.props.dispatch({
-            type:"multiple",
-            load:[
-                {type:"width", load:this.boundingBox.width},
-                {type:"height", load:this.boundingBox.height}
-            ]
-        });
-
-    }
-
-
-
-    animate = () => {  
-        
-        this.update();
-
-        this.renderer.render(this.scene, this.camera);
-
-        requestAnimationFrame(this.animate);
-
-    }  
-
-    
-
-    initLights = () => {
-
-        const light = new THREE.AmbientLight(0xffffff, 0.5);
-
-        light.position.set(0,0,0);
-
-        const lights : any[] = [
-            [-50, 0, 0], 
-            [ 50, 0, 0], 
-            //[ 0, 50, 0], 
-            //[ 0,-50, 0], 
-            //[ 0, 0,-50], 
-            //[ 0, 0, 50]
-        ]
-        .map(
-            tuple => {
-                const light = new THREE.DirectionalLight(0xffffff, 0.5);
-                light.position.set( tuple[0], tuple[1], tuple[2] ).normalize();  
-                return light;
-            }
-        );   
-
-        lights.push(light);
-
-        return lights;
 
     }
 
@@ -532,7 +179,7 @@ export class App extends Component<Store,AppState>{
 
         //this.controls.autoRotateSpeed = 8.0;
 
-        const lights = this.initLights();
+        const lights = initLights();
 
         lights.forEach((light:Light) => this.scene.add(light));
 
@@ -544,137 +191,79 @@ export class App extends Component<Store,AppState>{
 
     }    
 
-    
 
-    transformData = data => {
+
+    update = () => {
+
+        this.boundingBox = this.container.getBoundingClientRect();
+        
+        this.props.dispatch({
+            type:"multiple",
+            load:[
+                {type:"width", load:this.boundingBox.width},
+                {type:"height", load:this.boundingBox.height}
+            ]
+        });
 
     }
 
 
 
-    read = event => {
-
-        const files = event.target.files;
-
-        readNIFTIFile(files[0])
-
-        .then(
-
-            (data:any) => {
-
-                console.log(data);
-
-                const model = {
-                    computeNormals : true,
-                    mergePoints : true,
-                    contourValue : 50,
-                    classHierarchy : []
-                };
-
-                const publicAPI : any = {};
-
-                vtkImageMarchingCubes(publicAPI, model); 
-
-                const result = publicAPI.requestData({ 
-                    origin:[
-                        0,
-                        0, 
-                        0
-                    ], 
-                    spacing:[
-                        1,
-                        1,
-                        1
-                    ],  
-                    dims:[ 
-                        data.niftiHeader.dims[1],
-                        data.niftiHeader.dims[2], 
-                        data.niftiHeader.dims[3] 
-                    ], 
-                    s:data.typedData
-                });
-
-                console.log("result", result);
-
-
-                var geometry = new THREE.BufferGeometry();
-                // create a simple square shape. We duplicate the top left and bottom right
-                // vertices because each vertex needs to appear once per triangle.
-               
-                geometry.addAttribute( 'normal', new THREE.BufferAttribute( result.n, 3 ) );
-
-                // itemSize = 3 because there are 3 values (components) per vertex
-                geometry.addAttribute( 'position', new THREE.BufferAttribute( result.p , 3 ) ); //result.p
-
-
-
-                const colors = [];
-
-                for(let i=0; i < geometry.attributes.position.count; i++){
+    animate = () => {  
         
-                    colors.push( 
-                        133, //Math.round( Math.random() * 255 ), 
-                        156, //Math.round( Math.random() * 255 ), 
-                        55 //Math.round( Math.random() * 255 )
-                    );
-        
-                }
-        
-                const typed_colors = new Uint8Array(colors);
-               
-                geometry.addAttribute( 'color', new THREE.BufferAttribute( typed_colors, 3, true) );
-        
-                var material = new MeshPhysicalMaterial({
-                    vertexColors: THREE.VertexColors, //color: "#ec8080",
-                    metalness: 0.5,
-                    roughness: 0.5,
-                    clearCoat: 0.5,
-                    clearCoatRoughness: 0.5,
-                    reflectivity: 0.5,
-                    side: DoubleSide,
-                    transparent: false, 
-                    opacity: 1,
-                    clipShadows: true
-                    //depthTest: true
-                });
-                var mesh = new THREE.Mesh( geometry, material );
+        this.update();
 
-                this.scene.add(mesh);
-                //console.log("marchingCube", publicAPI);
+        this.renderer.render(this.scene, this.camera);
 
-                //marchingCube.setContourValue(0.9);
+        requestAnimationFrame(this.animate);
 
-                //marchingCube.setInputConnection();
+    }  
 
-            }
 
-        )
 
-            
-        /*const id = uniq();
+    onResize = e => {
 
-        const dataPath = path(['target','files','0','path'])(event);
+        this.boundingBox = this.container.getBoundingClientRect();
 
-        if(isNil(dataPath) || isEmpty(dataPath)){ return }
+        const { width, height } = this.boundingBox;
+
+        this.camera.aspect = width / height;
+    
+        this.camera.updateProjectionMatrix(); 
+                
+        this.renderer.setSize(width, height);  
         
         this.props.dispatch({
             type:"multiple",
             load:[
-                {type:"error", load:""},
-                {type:"loading", load:true}
+                {type:"width", load:width},
+                {type:"height", load:height}
             ]
         });
 
-        const options = {
-            smooth:this.props.smooth, 
-            threshold:this.props.thresh, 
-            shouldThreshold:this.props.shouldThreshold,
-            reductionFactor:this.props.reduction
-        };
+    }
 
 
-        ipcRenderer.send("read:nifti", dataPath, id, options);*/
-    
+
+    onSlice = (e,v) => {
+
+        this.localPlane.constant = v;
+
+        this.props.dispatch({type:"slice", load:v});
+
+    }
+
+
+
+    showError = (e) => {
+
+        this.props.dispatch({
+            type:"error", 
+            load:"Unable to load model. Try different settings or contact support. "
+        });
+
+        this.props.dispatch({type:"loading", load:false});
+
     }
 
 
@@ -698,6 +287,7 @@ export class App extends Component<Store,AppState>{
 
 
     emptySceneError = () => {
+
         this.props.dispatch({
             type:"multiple", 
             load:[
@@ -705,146 +295,192 @@ export class App extends Component<Store,AppState>{
                 {type:"loading", load:false}
             ]
         });
-    }
-
-
-
-    exportObj = p => {
-
-        this.props.dispatch({type:"loading", load:true});
-
-        const wstream = fs.createWriteStream(p);
-
-        const object = this.getBrains();
-
-        if(isNil(object)){ 
-            this.emptySceneError();
-            return; 
-        }
-
-        const exporter = new THREE['OBJExporter']();
-
-        //const result = 
-        exporter.parse(object, wstream.write);
-
-        //console.log(result.length, "done");
-        console.log(`${p} - done`);
-
-        wstream.end();
-
-        this.props.dispatch({type:"loading", load:false});
 
     }
 
 
 
-    exportJSON = p => {
+    onNIFTILoaded = (data:{ niftiHeader:any, niftiImage:any, typedData:any }) => {
 
-        this.props.dispatch({type:"loading", load:true});
+        const geometry = this.geometryFromNIFTI(data);
 
-        const object = this.getBrains() as Mesh;
+        const mesh = this.meshFromGeometry(geometry);
 
-        if(isNil(object)){ 
-            this.emptySceneError();
-            return; 
-        }
+        mesh.geometry.computeBoundingBox();
 
-        let json = object.geometry.toJSON();
+        const wd = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x;
 
-        json = JSON.stringify(json);
+        const hg = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
 
-        const wstream = fs.createWriteStream(p);
+        const max_y = mesh.geometry.boundingBox.max.y;
 
-        let buf = '';
-        let gap = 64000;
+        this.localPlane.constant = max_y;
 
-        for(let i = 0; i<json.length; i++){
-            buf += json[i];
-            if(buf.length>gap){
-                wstream.write(buf);
-                buf='';
-            }
-        }
-         
-        if(buf.length>0){
-            wstream.write(buf);
-            buf='';
-        } 
+        this.props.dispatch({
+            type:"multiple",
+            load:[
+                {type:"slice", load:max_y},
+                {type:"max", load:max_y},
+                {type:"min", load:0}
+            ]
+        });
+
+        const bbox = new THREE['BoundingBoxHelper']( mesh );
+
+        bbox.update();
+
+        this.scene.add( bbox );
+
+        const center = getObjectCenter(mesh);
+
+        this.camera.position.x = wd*2;
+        this.camera.position.y = hg*2;
+        this.camera.position.z = 0;
+
+        this.controls.target.set(center.x, center.y, center.z);
+
+        this.camera.lookAt(this.controls.target);
+
+        const object = getBrains(this.scene);
+
+        replaceSceneObject(this.scene, object, mesh); 
+       
+        this.renderer.render(this.scene, this.camera);
+
+    }
+
+
+
+    geometryFromNIFTI = (data:{ niftiHeader:any, niftiImage:any, typedData:any }) => {
+
+        const model = { computeNormals:true, mergePoints:true, contourValue:1, classHierarchy:[] };
+
+        const publicAPI : any = {};
+
+        vtkImageMarchingCubes(publicAPI, model); 
+
+        const result = publicAPI.requestData({ 
+            origin:[ 0, 0, 0 ], 
+            spacing:[ 1, 1, 1 ],  
+            dims:[ 
+                data.niftiHeader.dims[1],
+                data.niftiHeader.dims[2], 
+                data.niftiHeader.dims[3] 
+            ], 
+            s:data.typedData
+        });
+
+
+
+        console.log("vtkImageMarchingCubes result", result);
+
+
+
+        const geometry = new THREE.BufferGeometry();
+
+        geometry.addAttribute('normal', new THREE.BufferAttribute( result.n, 3 ));
+
+        geometry.addAttribute('position', new THREE.BufferAttribute( result.p , 3 ));
+
+        const colors = this.computeColors(geometry);
+
+        geometry.addAttribute('color', new THREE.BufferAttribute( colors, 3, true) );
+
+        return geometry;
+
+    }
+
+
+
+    meshFromGeometry = geometry => {
+
+        this.localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
+
+        const material = new MeshPhysicalMaterial({
+            clippingPlanes: [ this.localPlane ],
+            vertexColors: THREE.VertexColors,
+            metalness: 0.5,
+            roughness: 0.5,
+            clearCoat: 0.5,
+            clearCoatRoughness: 0.5,
+            reflectivity: 0.5,
+            side: DoubleSide,
+            transparent: false, 
+            opacity: 1,
+            clipShadows: true,
+            depthTest: true
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+
+        mesh.castShadow = true;
+
+        mesh.receiveShadow = true;
+
+        mesh.userData.brain = true;
+
+        mesh.frustumCulled = false;
+
+        return mesh;
+
+    }
+
+
+
+    readFile = event => {
+
+        const files = event.target.files;
+
+        this.props.dispatch({
+            type:"multiple",
+            load:[
+                {type:"error", load:""},
+                {type:"loading", load:true}
+            ]
+        });
+
+        readNIFTIFile(files[0])
+
+        .then(
+
+            (data:{ niftiHeader:any, niftiImage:any, typedData:any }) => {
+
+                this.onNIFTILoaded(data);
+
+                this.props.dispatch({type:"loading", load:false});
         
-        json = undefined;
+            } 
 
-        console.log(`${p} - done`);
-
-        wstream.end();
-
-        this.props.dispatch({type:"loading", load:false});
-
+        )
+    
     }
 
 
 
-    exportStl = p => {
+    //TODO
+    computeColors = geometry => {
 
-        this.props.dispatch({type:"loading", load:true});
+        const colors = [];
 
-        const object = this.getBrains();
+        for(let i=0; i < geometry.attributes.position.count; i++){
 
-        if(isNil(object)){ 
-            this.emptySceneError();
-            return; 
+            colors.push( 
+                Math.round( Math.random() * 255 ), 
+                Math.round( Math.random() * 255 ), 
+                Math.round( Math.random() * 255 )
+            );
+
         }
 
-        const wstream = fs.createWriteStream(p);
-
-        const exporter = new THREE['STLExporter']();
-
-        exporter.parse(object, wstream.write);
-
-        console.log(`${p} - done`);
-
-        wstream.end();
-
-        this.props.dispatch({type:"loading", load:false});
-
+        return new Uint8Array(colors);
+        
     }
-
- 
-
-    openSaveDialog = (extension:string) : void => {
-
-        this.closeExportMenu(null);
-
-        remote.dialog.showSaveDialog(
-            { 
-                title:'Save', 
-                filters:[{ name: `.${extension}`, extensions: [extension] }] 
-            }, 
-            result => {
-
-                if(isNil(result)){ return; }
-
-                if(extension==="stl"){
-
-                    this.exportStl(result);
-
-                }else if(extension==="json"){
-
-                    this.exportJSON(result);
-
-                }else if(extension==="obj"){
-
-                    this.exportObj(result);
-
-                }
-
-            }
-        );
-
-    }
-
+    
 
 
     render() {  
+
+
         
         return <div style={{height:'100%', width:'100%', display:"flex", flexDirection:"column"}}> 
 
@@ -868,7 +504,7 @@ export class App extends Component<Store,AppState>{
                             ref={e => { this.input=e; }}
                             disabled={this.props.loading}
                             style={{display:'none'}}
-                            onChange={this.read}
+                            onChange={this.readFile}
                             id="nii-upload"
                             multiple={false}
                             type="file"
@@ -967,7 +603,6 @@ export class App extends Component<Store,AppState>{
 
                 </Toolbar>
 
-           
                 <Popover
                     id={`popover`}
                     open={this.props.showSettings}
@@ -1034,7 +669,7 @@ export class App extends Component<Store,AppState>{
                 />
             </div>
             <div style={{position:"absolute", bottom:"0px", padding:"10px", fontSize:"12px"}}>
-                For Tzahi Nemet, March 2019
+                For Tzahi Nemet, April 2019
             </div>        
         </div> 
 
@@ -1047,9 +682,11 @@ export class App extends Component<Store,AppState>{
 ipcRenderer.once("loaded", (event,data) => {
 
     const app = document.createElement('div'); 
+
     app.style.width = '100%';
     app.style.height = '100%';
     app.id = 'application';
+
     document.body.appendChild(app);  
 
     ReactDOM.render( 

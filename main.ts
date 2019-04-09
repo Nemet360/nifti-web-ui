@@ -1,18 +1,21 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import { initListeners } from './listeners';
-const fs = require("fs"); //("fs-extra");
+import { isDev } from './app/utils/isDev';
+const fs = require("fs-extra");
 const path = require('path');
-const url = require('url');
+const locked = app.requestSingleInstanceLock(); //TODO remove lock to allow multiple windows simultaneously
+
+
 
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096');
 
-const locked = app.requestSingleInstanceLock();
+
 
 Menu.setApplicationMenu(null);
 
 
 
-export const onError = error => {
+const onError = error => {
    
   let e = "";
 
@@ -22,7 +25,7 @@ export const onError = error => {
 
   }catch(e){}
 
-  const p = path.join(process.env.HOME, "error.txt");
+  const p = path.join(process.env.HOME, "nifti_error.txt");
 
   fs.writeFileSync(p, e);
 
@@ -42,7 +45,7 @@ const loadTemplate = (window, url) => {
 
     })
 
-};   
+}  
 
 
 
@@ -65,27 +68,21 @@ app.on(
 
 
 
-const getConfig = () => {
+const onWindowLoaded = () => {
 
-  return new Promise(resolve => resolve({}))
+  win.webContents.send("loaded");
 
-};
+  if(isDev()){
 
+    win.webContents.openDevTools();
+    
+  }
 
-
-const onWindowLoaded = config => {
-
-  const data = {};
-
-  win.webContents.send("loaded", data);
-
-  win.webContents.openDevTools();
-
-};
+}
 
 
 
-const createWindow = config => {
+const createWindow = () => {
 
   const options = {
     width : 1800, 
@@ -102,34 +99,23 @@ const createWindow = config => {
 
   win.on('closed', () => { win = null; });
 
-  win.webContents.on(
-    "crashed", 
-    (event,killed) => { 
-
-      if(killed){ return; }
-
-      //app.quit();
-
-    }
-  );
-
   win.setMenu(null);
 
   const templatePath = `file://${__dirname}/app.html`;
 
-  return loadTemplate(win, templatePath).then(() => onWindowLoaded(config));
+  return loadTemplate(win, templatePath).then(() => onWindowLoaded());
 
-};
+}
 
 
 
-const onReady = config => {
+const onReady = () => {
 
   initListeners();
   
-  createWindow(config);
+  createWindow();
 
-};
+}
 
 
 
@@ -143,7 +129,7 @@ app.on(
 
     }else{
 
-      getConfig().then(conf => onReady(conf));
+      onReady();
 
     }
 

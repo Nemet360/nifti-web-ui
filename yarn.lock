@@ -8241,7 +8241,7 @@ vm-browserify@0.0.4:
 
 "vtk.js@https://github.com/WildHorse19/vtk-js":
   version "0.0.0-semantically-release"
-  resolved "https://github.com/WildHorse19/vtk-js#1eb7bb951a20bc827aa87814f700f5fa9f97e2dc"
+  resolved "https://github.com/WildHorse19/vtk-js#b63a14efc713c3e3d78c1af28be46c18e83c8431"
   dependencies:
     base64-js "1.2.1"
     blueimp-md5 "2.10.0"
