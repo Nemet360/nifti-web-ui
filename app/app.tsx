@@ -37,6 +37,8 @@ import { exportObj } from './utils/exportObj';
 import { initLights } from './utils/initLights';
 const { vtkImageMarchingCubes } = cubes;
 const Spinner = require('react-spinkit');
+const resizeImageData = require('resize-image-data');
+const nifti = require("nifti-reader-js");
 
 window['THREE'] = THREE;
 
@@ -47,16 +49,185 @@ require("./OBJExporter");
 
 
 
+function drawCanvasA(canvas, slice, niftiHeader, niftiImage) {
+           
+    var x_max = niftiHeader.dims[1]; 
+    var y_max = niftiHeader.dims[2]; 
+    var z_max = niftiHeader.dims[3];
+
+    var x = 0;
+    var y = 0; 
+    var z = Number(slice);
+
+    canvas.width = x_max;
+    canvas.height = y_max;
+
+    var ctx = canvas.getContext("2d");
+    var canvasImageData = ctx.createImageData(canvas.width, canvas.height);
+
+    let typedData = new Uint8Array(niftiImage) as any;
+
+     if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT8) {
+         typedData = new Uint8Array(niftiImage);
+     } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT16) {
+         typedData = new Int16Array(niftiImage);
+     } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT32) {
+         typedData = new Int32Array(niftiImage);
+     } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_FLOAT32) {
+         typedData = new Float32Array(niftiImage);
+     } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_FLOAT64) {
+         typedData = new Float64Array(niftiImage);
+     } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT8) {
+         typedData = new Int8Array(niftiImage);
+     } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT16) {
+         typedData = new Uint16Array(niftiImage);
+     } else if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT32) {
+         typedData = new Uint32Array(niftiImage);
+     } else {
+         return undefined;
+     }
+
+     for (y = 0; y < y_max; y++) {
+
+         for (x = 0; x < x_max; x++) {
+
+            var offset = (z * x_max * y_max) + (y * x_max) + x;
+            
+            var v = typedData[offset];
+
+            var image_location = (y * x_max + x) * 4;
+
+            canvasImageData.data[image_location] = v;
+            canvasImageData.data[image_location + 1] = v;
+            canvasImageData.data[image_location + 2] = v;
+            canvasImageData.data[image_location + 3] = 0xFF;
+
+         }
+
+    }
+
+    ctx.putImageData(canvasImageData, 0, 0);
+
+ }
+
+
+
+type data = { niftiHeader:any, niftiImage:any, typedData:any };
+
+
+
+type dims = { x:number, y:number, z:number };
+
+
+
+const resize = ( original_dims, target_dims, data ) => {
+
+    const difference_xy = (target_dims.x * target_dims.y - original_dims.x * original_dims.y) * original_dims.z;
+
+    const difference_z = (target_dims.z - original_dims.z) * target_dims.x * target_dims.y;
+
+    const interval = original_dims.z/Math.abs(target_dims.z - original_dims.z);
+
+    let newLength = data.byteLength + difference_xy;
+
+    while(newLength%4!==0){ newLength++; } 
+
+    const dataInterface = new Uint8Array(data);
+
+    const dest = new ArrayBuffer(newLength); 
+            
+    const dest_interface = new Uint8Array(dest);
+
+    const canvas = document.createElement('canvas');
+
+
+    const x_max = original_dims.x; 
+    const y_max = original_dims.y; 
+    const z_max = original_dims.z;
+
+    let x = 0;
+    let y = 0; 
+    let z = 0;
+    let ctr = 0;
+
+    for(z = 0; z < z_max; z++){
+
+        //if( z % interval===0 && difference_z < 0 ){ 
+            //console.log(`remove slice ${z}`);
+            //continue; 
+        //}
+
+        canvas.width = x_max;
+        canvas.height = y_max;
+        const ctx = canvas.getContext("2d");
+        const canvasImageData = ctx.createImageData(canvas.width, canvas.height);
+
+        for (y = 0; y < y_max; y++) {
+
+            for (x = 0; x < x_max; x++) {
+
+                const offset = (z * x_max * y_max) + (y * x_max) + x;
+                
+                const v = dataInterface[offset];
+
+                const image_location = (y * x_max + x) * 4;
+
+                canvasImageData.data[image_location] = v;
+                canvasImageData.data[image_location + 1] = v;
+                canvasImageData.data[image_location + 2] = v;
+                canvasImageData.data[image_location + 3] = 0xFF;
+
+            }
+
+        }
+
+        const result = resizeImageData(canvasImageData, target_dims.x, target_dims.y, 'biliniear-interpolation');
+        
+        const buffer = new Uint8Array(result.data);
+
+        for (y = 0; y < target_dims.y; y++) {
+
+            for (x = 0; x < target_dims.x; x++) {
+
+                const image_location = (y * target_dims.x + x) * 4;
+
+                dest_interface[ctr++] = buffer[image_location];
+
+            }
+
+        }
+
+        /*
+        //if( z % interval===0 && difference_z > 0 ){ 
+
+            //console.log(`duplicate slice ${z}`);
+
+            //for(let i=0; i<buffer.length; i+=4){
+
+                //dest[ctr++] = buffer[i];
+    
+            //}
+
+        //}
+        */
+
+    }
+
+    return dest;
+
+}
+
 interface AppState{}
 
 
 
 @connect(store => store, attachDispatchToProps)
-export class App extends Component<Store,AppState>{
+export class App extends Component<Store,any>{
     anchor:HTMLElement
     resize:Subscription
     menu:HTMLElement
-    input:HTMLInputElement
+    input_model:HTMLInputElement
+    input_perfusion:HTMLInputElement
     container:HTMLElement
     boundingBox:any
     scene:Scene
@@ -64,6 +235,9 @@ export class App extends Component<Store,AppState>{
     renderer:WebGLRenderer
     controls:any
     localPlane:any
+
+    model:any 
+    perfusion:any
 
 
 
@@ -131,10 +305,10 @@ export class App extends Component<Store,AppState>{
         this.props.dispatch({
             type:"multiple",
             load:[
-                {type:"width", load:this.boundingBox.width},
-                {type:"height", load:this.boundingBox.height}
+                { type:"width", load:this.boundingBox.width },
+                { type:"height", load:this.boundingBox.height }
             ]
-        })
+        });
         
         this.init();  
 
@@ -300,7 +474,7 @@ export class App extends Component<Store,AppState>{
 
 
 
-    onNIFTILoaded = (data:{ niftiHeader:any, niftiImage:any, typedData:any }) => {
+    onNIFTILoaded = (data:data, perfusion:data) => {
 
         const geometry = this.geometryFromNIFTI(data);
 
@@ -367,7 +541,7 @@ export class App extends Component<Store,AppState>{
                 data.niftiHeader.dims[2], 
                 data.niftiHeader.dims[3] 
             ], 
-            s:data.typedData
+            s:data.niftiImage
         });
 
 
@@ -398,7 +572,7 @@ export class App extends Component<Store,AppState>{
 
         const material = new MeshPhysicalMaterial({
             clippingPlanes: [ this.localPlane ],
-            vertexColors: THREE.VertexColors,
+            //vertexColors: THREE.VertexColors,
             metalness: 0.5,
             roughness: 0.5,
             clearCoat: 0.5,
@@ -427,36 +601,6 @@ export class App extends Component<Store,AppState>{
 
 
 
-    readFile = event => {
-
-        const files = event.target.files;
-
-        this.props.dispatch({
-            type:"multiple",
-            load:[
-                {type:"error", load:""},
-                {type:"loading", load:true}
-            ]
-        });
-
-        readNIFTIFile(files[0])
-
-        .then(
-
-            (data:{ niftiHeader:any, niftiImage:any, typedData:any }) => {
-
-                this.onNIFTILoaded(data);
-
-                this.props.dispatch({type:"loading", load:false});
-        
-            } 
-
-        )
-    
-    }
-
-
-
     //TODO
     computeColors = geometry => {
 
@@ -475,7 +619,155 @@ export class App extends Component<Store,AppState>{
         return new Uint8Array(colors);
         
     }
+
+
+
+    equalizeData = (perfusion, model) => {
+
+        const model_dim = {
+            x:model.niftiHeader.dims[1],
+            y:model.niftiHeader.dims[2],
+            z:model.niftiHeader.dims[3]
+        };
+
+        const perfusion_dim = {
+            x:perfusion.niftiHeader.dims[1],
+            y:perfusion.niftiHeader.dims[2],
+            z:perfusion.niftiHeader.dims[3]
+        };
+
+
+
+        if(
+            model_dim.x === perfusion_dim.x &&
+            model_dim.y === perfusion_dim.y &&
+            model_dim.z === perfusion_dim.z
+        ){
+
+            return perfusion;
+
+        }else{
+
+            perfusion.niftiImage = resize(perfusion_dim, model_dim, perfusion.niftiImage);
+
+            perfusion.niftiHeader.dims[1] = model_dim.x;
+            perfusion.niftiHeader.dims[2] = model_dim.y;
+            perfusion.niftiHeader.dims[3] = model_dim.z;
+
+            return perfusion;
+
+        }
+
+    }
+
+
+
+    renderModel = () => {
+
+        const model = this.model;
+
+        const perfusion = this.perfusion;
+
+        if(isNil(model) || isNil(perfusion)){ return; }
+
+
+
+        this.props.dispatch({
+            type:"multiple",
+            load:[
+                {type:"error", load:""},
+                {type:"loading", load:true}
+            ]
+        });
+
+
+
+        Promise.all([
+            readNIFTIFile(model),
+            Promise.resolve(null) //readNIFTIFile(perfusion)
+        ])
+        .then(
+
+            ([model, perfusion]:[data,data]) => {
+
+                const perfusionEqualized = perfusion; //this.equalizeData(perfusion, model);
+
+                //TEST
+                ///////////////////////////////////////////////////////////////
+                const model_dim = { x:model.niftiHeader.dims[1], y:model.niftiHeader.dims[2], z:model.niftiHeader.dims[3] };
+                const target_dim = { x:500, y:100, z:100 };
     
+                model.niftiImage = model.niftiImage;// resize(model_dim, target_dim, model.niftiImage);
+    
+                model.niftiHeader.dims[1] = target_dim.x;
+                model.niftiHeader.dims[2] = target_dim.y;
+                model.niftiHeader.dims[3] = target_dim.z;
+
+                let typedData : any = new Int32Array(model.niftiImage );
+
+                if (model.niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT8) {
+                    typedData = new Uint8Array(model.niftiImage );
+                } else if (model.niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT16) {
+                    typedData = new Int16Array(model.niftiImage );
+                } else if (model.niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT32) {
+                    typedData = new Int32Array(model.niftiImage );
+                } else if (model.niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_FLOAT32) {
+                    typedData = new Float32Array(model.niftiImage );
+                } else if (model.niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_FLOAT64) {
+                    typedData = new Float64Array(model.niftiImage );
+                } else if (model.niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_INT8) {
+                    typedData = new Int8Array(model.niftiImage );
+                } else if (model.niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT16) {
+                    typedData = new Uint16Array(model.niftiImage );
+                } else if (model.niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT32) {
+                    typedData = new Uint32Array(model.niftiImage );
+                }
+                ////////////////////////////////////////////////////////////////
+                model.niftiImage = typedData; 
+                this['model_data'] = model;
+    
+                var slices = model.niftiHeader.dims[3];
+    
+                this.setState({
+                    value:slices - 1, max:Math.round(slices / 2)
+                })
+             
+
+
+                this.onNIFTILoaded( model, perfusionEqualized  );
+
+                this.props.dispatch({ type:"loading", load:false });
+        
+            } 
+
+        )
+
+    }
+
+
+
+    getModel = event => {
+
+        const files = event.target.files;
+
+        const file = files[0];
+
+        this.model = file;
+
+    }
+
+
+
+    getPerfusion = event => {
+
+        const files = event.target.files;
+
+        const file = files[0];
+
+        this.perfusion = file;
+
+    }
+
 
 
     render() {  
@@ -498,56 +790,104 @@ export class App extends Component<Store,AppState>{
                         NIFTI Viewer
                     </Typography>
 
-                    <div style={{padding:"10px"}}>
-                        <input
-                            accept=".nii,.nii.gz"
-                            ref={e => { this.input=e; }}
-                            disabled={this.props.loading}
-                            style={{display:'none'}}
-                            onChange={this.readFile}
-                            id="nii-upload"
-                            multiple={false}
-                            type="file"
-                        />
-                        <label htmlFor="nii-upload">
-                            <Button  
-                                size="small" 
-                                variant="contained" 
-                                component="span"
+                    <div style={{display:"flex"}}>
+
+                        <div style={{padding:"10px"}}>
+                            <input
+                                accept=".nii,.nii.gz"
+                                ref={e => { this.input_model = e; }}
                                 disabled={this.props.loading}
-                                onClick={e => { this.input.value=null; }}
-                                style={{textTransform:'none', whiteSpace:'nowrap'}}
-                            >
-                                <div>Import</div>
-                            </Button>
-                        </label>  
+                                style={{display:'none'}}
+                                onChange={this.getModel}
+                                id="nii-upload-model"
+                                multiple={false}
+                                type="file"
+                            />
+                            <label htmlFor="nii-upload-model">
+                                <Button  
+                                    size="small" 
+                                    variant="contained" 
+                                    component="span"
+                                    disabled={this.props.loading}
+                                    onClick={e => { this.input_model.value = null; }}
+                                    style={{textTransform:'none', whiteSpace:'nowrap'}}
+                                >
+                                    <div>Import model</div>
+                                </Button>
+                            </label>  
+                        </div>
+
+                        <div style={{padding:"10px"}}>
+                            <input
+                                accept=".nii,.nii.gz"
+                                ref={e => { this.input_perfusion = e; }}
+                                disabled={this.props.loading}
+                                style={{display:'none'}}
+                                onChange={this.getPerfusion}
+                                id="nii-upload-perfusion"
+                                multiple={false}
+                                type="file"
+                            />
+                            <label htmlFor="nii-upload-perfusion">
+                                <Button  
+                                    size="small" 
+                                    variant="contained" 
+                                    component="span"
+                                    disabled={this.props.loading}
+                                    onClick={e => { this.input_perfusion.value = null; }}
+                                    style={{textTransform:'none', whiteSpace:'nowrap'}}
+                                >
+                                    <div>Import perfusion map</div>
+                                </Button>
+                            </label>  
+                        </div>
+
                     </div>
 
-                    <div style={{
-                        display:"flex",
-                        alignItems:"center",
-                        justifyContent:"space-between"
-                    }}>
-                        <Button 
-                            onClick={this.showExportMenu} 
-                            style={{textTransform:'none', whiteSpace:'nowrap'}} 
-                            size="small" 
-                            component="span"
-                            disabled={this.props.loading}
-                            variant="contained" 
-                        >
-                            <div>Export</div>
-                        </Button>
-                        <Menu
-                            id="export-element-menu"
-                            anchorEl={this.menu}
-                            open={this.props.showMenu}
-                            onClose={this.closeExportMenu}
-                        >
-                            <MenuItem onClick={e => this.openSaveDialog("obj")} style={{fontWeight:300}}>OBJ</MenuItem>
-                            <MenuItem onClick={e => this.openSaveDialog("json")} style={{fontWeight:300}}>JSON</MenuItem>
-                            <MenuItem onClick={e => this.openSaveDialog("stl")} style={{fontWeight:300}}>STL</MenuItem>
-                        </Menu>
+                    <div style={{display:"flex"}}>
+
+                        <div style={{padding:"10px"}}>
+
+                            <Button 
+                                onClick={this.renderModel} 
+                                style={{textTransform:'none', whiteSpace:'nowrap'}} 
+                                size="small" 
+                                component="span"
+                                disabled={this.props.loading}
+                                variant="contained" 
+                            >
+                                <div>Render model</div>
+                            </Button>
+
+                        </div>
+
+                        <div style={{padding:"10px"}}>
+
+                            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                                <Button 
+                                    onClick={this.showExportMenu} 
+                                    style={{textTransform:'none', whiteSpace:'nowrap'}} 
+                                    size="small" 
+                                    component="span"
+                                    disabled={this.props.loading}
+                                    variant="contained" 
+                                >
+                                    <div>Export</div>
+                                </Button>
+                                <Menu
+                                    id="export-element-menu"
+                                    anchorEl={this.menu}
+                                    open={this.props.showMenu}
+                                    onClose={this.closeExportMenu}
+                                >
+                                    <MenuItem onClick={e => this.openSaveDialog("obj")} style={{fontWeight:300}}>OBJ</MenuItem>
+                                    <MenuItem onClick={e => this.openSaveDialog("json")} style={{fontWeight:300}}>JSON</MenuItem>
+                                    <MenuItem onClick={e => this.openSaveDialog("stl")} style={{fontWeight:300}}>STL</MenuItem>
+                                </Menu>
+                            </div>
+
+                        </div>
+
                     </div>
 
                     <div style={{
@@ -671,6 +1011,19 @@ export class App extends Component<Store,AppState>{
             <div style={{position:"absolute", bottom:"0px", padding:"10px", fontSize:"12px"}}>
                 For Tzahi Nemet, April 2019
             </div>        
+            <div style={{position:"absolute", top:0, left:0, zIndex:999999}}> 
+                <canvas id="myCanvas" width="100" height="100"></canvas><br />
+                <input 
+                type="range" 
+                min="1" 
+                max="100" 
+                value={this.state.slice}
+                onChange={e => this.setState({ value:e.target.value }, () => {
+                            var canvas = document.getElementById('myCanvas');
+                            drawCanvasA(canvas, this.state.value, this['model_data'].niftiHeader, this['model_data'].niftiImage)
+                        } 
+                )} id="myRange"/>
+            </div>
         </div> 
 
     }
