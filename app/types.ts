@@ -2,6 +2,14 @@ export type Dispatch = (action:action) => void
 
 
 
+export type data = { niftiHeader:any, niftiImage:any };
+
+
+
+export type dims = { x:number, y:number, z:number };
+
+
+
 export interface action{ type:keyof Store, load:any }
 
 
