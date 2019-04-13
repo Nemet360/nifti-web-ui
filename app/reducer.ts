@@ -20,7 +20,7 @@ const getActionsList : (action:any) => any[] = cond([
 
 const logger = (before:Store, action:action) => (after:Store) => {
 
-	//console.log(JSON.stringify(action)); //necessary to analyze actions in integration tests
+	//console.log(JSON.stringify(action));
 
 	return after;
 	

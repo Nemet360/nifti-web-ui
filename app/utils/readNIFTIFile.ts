@@ -1,5 +1,25 @@
 import { makeSlice } from "./makeSlice";
-import { readNIFTI } from "./readNIFTI";
+import { imageToTypedData } from "./imageToTypedData";
+const nifti = require("nifti-reader-js");
+
+
+
+const readNIFTI = (data) => {
+
+    let niftiHeader, niftiImage;
+
+    if (nifti.isCompressed(data)) {
+        data = nifti.decompress(data);
+    }
+
+    if (nifti.isNIFTI(data)) {
+        niftiHeader = nifti.readHeader(data);
+        niftiImage = nifti.readImage(niftiHeader, data);
+    }
+
+    return { niftiHeader, niftiImage };
+
+}
 
 
 
@@ -9,8 +29,6 @@ export const readNIFTIFile = file => (
 
         resolve => {
         
-            let start = 0;
-
             let blob = makeSlice(file, 0, file.size);
 
             let reader = new FileReader();

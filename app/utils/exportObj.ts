@@ -1,7 +1,6 @@
 import { ipcRenderer, remote } from 'electron';
 import * as THREE from "three";
-import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide } from 'three';
-import { getBrains } from './getBrains';
+import { Scene } from 'three';
 const fs = remote.require('fs');
 
 
@@ -10,7 +9,7 @@ export const exportObj = (scene:Scene, p:string) : void => {
 
     const wstream = fs.createWriteStream(p);
 
-    const object = getBrains(scene);
+    const object = scene.children.find(mesh => mesh.userData.brain);
 
     const exporter = new THREE['OBJExporter']();
 

@@ -1,10 +1,8 @@
-import { imageToTypedData } from "./imageToTypedData";
-import { dims } from "../types";
 import { resizeNIFTIImage } from "./resizeNIFTIImage";
 
 
 
-export const reshapePerfusion = (perfusion, model_dim:dims) => {
+export const reshapePerfusion = (perfusion, model_dim) => {
 
     const perfusion_dim = {
         x:perfusion.niftiHeader.dims[1],
@@ -24,9 +22,8 @@ export const reshapePerfusion = (perfusion, model_dim:dims) => {
 
         const { niftiImage, niftiHeader } = perfusion;
         const target_dim = { ...model_dim };
-        const typedData = imageToTypedData(niftiImage, niftiHeader);
         
-        perfusion.niftiImage = resizeNIFTIImage(perfusion_dim, target_dim, typedData);
+        perfusion.niftiImage = resizeNIFTIImage(perfusion_dim, target_dim, niftiImage);
 
         perfusion.niftiHeader.dims[1] = target_dim.x;
         perfusion.niftiHeader.dims[2] = target_dim.y;

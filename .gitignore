@@ -1,7 +1,5 @@
 node_modules
 output
-dist
 development
 production
-hooks
 samples

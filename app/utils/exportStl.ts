@@ -1,6 +1,6 @@
 import { Scene } from 'three';
 import { remote } from 'electron';
-import { getBrains } from './getBrains';
+import * as THREE from "three";
 const fs = remote.require('fs');
 
 
@@ -9,7 +9,7 @@ export const exportStl = (scene:Scene, p:string) : void => {
 
     const wstream = fs.createWriteStream(p);
 
-    const object = getBrains(scene);
+    const object = scene.children.find(mesh => mesh.userData.brain);
 
     const exporter = new THREE['STLExporter']();
 

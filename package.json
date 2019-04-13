@@ -1,7 +1,7 @@
 {
   "name": "nifti",
   "productName": "NIFTIViewer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "development/main.js",
   "scripts": {
@@ -9,9 +9,7 @@
     "build:renderer:production": "webpack -w --env production --config webpack.config.js",
     "build:main:production": "webpack -w --env production --config webpack.main.config.js",
     "build:renderer": "webpack -w --env development --config webpack.config.js",
-    "build:main": "webpack -w --env development --config webpack.main.config.js",
-    "script-exe": "./dist/script.exe ./samples/wt1.nii '{\"smooth\":500,\"threshold\":50,\"shouldThreshold\":true,\"reductionFactor\":0.5}'",
-    "script": "C:\\Python27\\python.exe script.py ./samples/wt1.nii '{\"smooth\":500,\"threshold\":50,\"shouldThreshold\":true,\"reductionFactor\":0.5}'"
+    "build:main": "webpack -w --env development --config webpack.main.config.js"
   },
   "homepage": "https://google.com",
   "repository": "",
@@ -44,7 +42,6 @@
     "font-loader": "^0.1.2",
     "fs": "0.0.1-security",
     "fs-extra": "^7.0.1",
-    "gl-catmull-clark": "^1.0.0",
     "html-webpack-plugin": "3.2.0",
     "math-float32-to-binary-string": "^1.0.0",
     "nifti-reader-js": "^0.5.4",
@@ -55,24 +52,21 @@
     "react-redux": "^5.0.7",
     "react-spinkit": "^3.0.0",
     "react-transition-group": "2.4.0",
+    "react-vis": "^1.11.6",
     "redux": "^4.0.0",
     "resize-image-data": "^0.2.0",
     "resize-observer-polyfill": "^1.5.1",
     "rxjs": "^5.4.2",
     "source-map-loader": "^0.2.1",
     "style-loader": "0.21.0",
-    "taubin-smooth": "^1.0.1",
     "three": "0.103.0",
-    "three-subdivision-modifier": "^1.0.5",
     "ts-loader": "4.2.0",
     "tween.js": "^16.6.0",
-    "typedarray-pool": "^1.1.0",
     "typescript": "^2.4.2",
     "uglify-es": "3.3.9",
     "uglifyjs-webpack-plugin": "1.2.5",
     "uniqid": "^4.1.1",
     "url": "^0.11.0",
-    "vtk.js": "https://github.com/WildHorse19/vtk-js",
     "webpack": "4.7.0",
     "webpack-cli": "^3.0.8",
     "webpack-dev-server": "^3.2.1"
@@ -84,13 +78,8 @@
       "output": "output"
     },
     "copyright": "Copyright 2019 Tzahi Nemet",
-    "asar": {
-      "smartUnpack": true
-    },
-    "asarUnpack": [
-      "**/production/script.exe",
-      "**/production/script.py"
-    ],
+    "asar": true,
+    "asarUnpack": [],
     "extraFiles": [],
     "files": [
       "production/**/*"

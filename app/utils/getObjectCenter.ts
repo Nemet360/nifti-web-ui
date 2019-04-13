@@ -1,4 +1,4 @@
-import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Box3, Mesh, MeshPhysicalMaterial, DoubleSide } from 'three';
+import { Vector3, Box3, Mesh } from 'three';
 
 
 

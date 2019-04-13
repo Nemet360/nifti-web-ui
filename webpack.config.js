@@ -1,5 +1,4 @@
 const path = require("path");
-const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');      
 
@@ -50,8 +49,6 @@ module.exports = env => {
     target:"electron-renderer", //"web"
 
     plugins: [
-      new CopyWebpackPlugin([{ from : "./dist/script.exe" }]),  
-      new CopyWebpackPlugin([{ from : "./script.py" }]),  
       new CopyWebpackPlugin([{ from : "./app/assets" }]),   
       new HtmlWebpackPlugin({
           inject:true, 

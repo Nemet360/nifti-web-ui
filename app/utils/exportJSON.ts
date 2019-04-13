@@ -1,13 +1,13 @@
-import { Scene } from "three";
-import { getBrains } from "./getBrains";
+import { Scene, Mesh } from "three";
 import { remote } from 'electron';
+import * as THREE from "three";
 const fs = remote.require('fs');
 
 
 
 export const exportJSON = (scene:Scene, p:string) : void => {
 
-    const object = getBrains(scene) as any;
+    const object = scene.children.find(mesh => mesh.userData.brain) as Mesh;
 
     let json = object.geometry.toJSON();
 
