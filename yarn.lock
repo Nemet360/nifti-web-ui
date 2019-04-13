@@ -7734,6 +7734,11 @@ term-size@^1.2.0:
   dependencies:
     execa "^0.7.0"
 
+three-mesh-bvh@^0.1.2:
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/three-mesh-bvh/-/three-mesh-bvh-0.1.2.tgz#516bfdfdab4d8f5b12d1ff18743edcd3a7437a1b"
+  integrity sha512-ZwwpWalwKGUEp+APg2plFI5v2ws0h7ii++a/sKBom9tvAum6wNxF4oFDQrMr87MukzJT8XKnGJli4PeLZDKTcw==
+
 three@0.103.0:
   version "0.103.0"
   resolved "https://registry.yarnpkg.com/three/-/three-0.103.0.tgz#63b3dbccc861caad93269618061a73dadebae71b"

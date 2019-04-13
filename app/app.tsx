@@ -15,7 +15,8 @@ import { fromEvent } from 'rxjs/observable/fromEvent';
 import Button from '@material-ui/core/Button';
 import Settings from '@material-ui/icons/Settings';
 import * as THREE from "three";
-import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide, BufferGeometry } from 'three';
+import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide, BufferGeometry, Geometry } from 'three';
+
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography'; 
@@ -37,6 +38,15 @@ import { imageToTypedData } from './utils/imageToTypedData';
 import { reshapePerfusion } from './utils/reshapePerfusion';
 import { imageToVolume } from './utils/imageToVolume';
 import { isNotNil } from './utils/isNotNil';
+import { showNormals } from './utils/showNormals';
+
+
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+THREE.BufferGeometry.prototype['computeBoundsTree'] = computeBoundsTree;
+THREE.BufferGeometry.prototype['disposeBoundsTree'] = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
 
 const Spinner = require('react-spinkit');
 
@@ -52,7 +62,6 @@ require("./exporters/STLLoader");
 require("./exporters/STLExporter");
 require("./exporters/OBJExporter");
 require("./SubdivisionModifier");
-
 
 
 
@@ -97,23 +106,6 @@ unsigned long histogram[];
 
 }  
 */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const f = x => 1/(1 + Math.exp(-x));
 
 
 
@@ -499,9 +491,6 @@ export class App extends Component<Store,AppState>{
         
         const { perfusionNormals, perfusionPoints } = result;
 
-
-
-
         //
         let coloration = new THREE.BufferGeometry();
 
@@ -509,30 +498,103 @@ export class App extends Component<Store,AppState>{
 
         coloration.addAttribute('position', new THREE.BufferAttribute( new Float32Array(perfusionPoints), 3));
         
-        coloration = this.colorize(coloration,[]) as any;
+        let coloration1 = this.colorize(coloration,[]) as Geometry;
 
-        coloration.computeBoundingBox();
+        coloration1.computeBoundingBox();
         //
 
         let geometry = new THREE.BufferGeometry();
+
+        let colors = [];
+        for(let i=0; i<points.length; i++){
+            colors.push(0);
+        }
 
         geometry.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(normals), 3));
 
         geometry.addAttribute('position', new THREE.BufferAttribute( new Float32Array(points), 3));
 
+        geometry.addAttribute('color', new THREE.BufferAttribute( new Float32Array(colors), 3));
+
+        //geometry = new THREE.Geometry().fromBufferGeometry(geometry) as any;
+
         geometry.computeBoundingBox();
 
-
+        geometry['computeBoundsTree']();
 
         const mesh = this.meshFromGeometry(geometry);
 
-        const mesh2 = this.meshFromGeometry(coloration);
 
-        mesh.add(mesh2);
+
+        //const lines = showNormals(simple);
+
+        const ray = new THREE.Raycaster();
+
+
+        coloration1.faces.forEach((face,index) => {
+            
+            if(index%1000===0){ console.log(index) }
+
+            const v1 = coloration1.vertices[face.a];  
+            const v2 = coloration1.vertices[face.b]; 
+            const v3 = coloration1.vertices[face.c]; 
+    
+            const center = new THREE.Vector3((v1.x+v2.x+v3.x)/3, (v1.y+v2.y+v3.y)/3, (v1.z+v2.z+v3.z)/3);
+            
+            const direction = new THREE.Vector3(center.x + face.normal.x,center.y + face.normal.y,center.z + face.normal.z).normalize();
+            
+            ray.set(center, direction);
+            
+            const res = ray.intersectObject(mesh, false);
+            
+            const first = res[0];
+
+            if(first){  
+
+                mesh.geometry['attributes'].color.array[first.face.a*3] = face.vertexColors[0].r;
+                mesh.geometry['attributes'].color.array[first.face.a*3+1] = face.vertexColors[0].g;
+                mesh.geometry['attributes'].color.array[first.face.a*3+2] = face.vertexColors[0].b;
+        
+                mesh.geometry['attributes'].color.array[first.face.b*3] = face.vertexColors[1].r;
+                mesh.geometry['attributes'].color.array[first.face.b*3+1] = face.vertexColors[1].g;
+                mesh.geometry['attributes'].color.array[first.face.b*3+2] = face.vertexColors[1].b;
+        
+                mesh.geometry['attributes'].color.array[first.face.c*3] = face.vertexColors[2].r;
+                mesh.geometry['attributes'].color.array[first.face.c*3+1] = face.vertexColors[2].g;
+                mesh.geometry['attributes'].color.array[first.face.c*3+2] = face.vertexColors[2].b;
+
+            }
+
+        })
+
+
+        mesh.geometry['attributes'].color.needsUpdate = true;   
+
+        /*
+        mesh.geometry['attributes'].color.array[first.face.a] = face.vertexColors[0].r;
+        mesh.geometry['attributes'].color.array[first.face.a+1] = face.vertexColors[0].g;
+        mesh.geometry['attributes'].color.array[first.face.a+2] = face.vertexColors[0].b;
+
+        mesh.geometry['attributes'].color.array[first.face.b] = face.vertexColors[1].r;
+        mesh.geometry['attributes'].color.array[first.face.b+1] = face.vertexColors[1].g;
+        mesh.geometry['attributes'].color.array[first.face.b+2] = face.vertexColors[1].b;
+
+        mesh.geometry['attributes'].color.array[first.face.c] = face.vertexColors[2].r;
+        mesh.geometry['attributes'].color.array[first.face.c+1] = face.vertexColors[2].g;
+        mesh.geometry['attributes'].color.array[first.face.c+2] = face.vertexColors[2].b;
+        */
+
+
+
+        const mesh2 = this.meshFromGeometry(coloration1);
+
+        this.scene.add(mesh2);
+
+        //mesh.add(lines);
 
         const center = getObjectCenter(mesh);
 
-        
+
 
         const wd = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x;
 
@@ -565,7 +627,7 @@ export class App extends Component<Store,AppState>{
 
         const object = this.scene.children.find(mesh => mesh.userData.brain) as Mesh;
 
-        removeObject(this.scene, object);
+        //removeObject(this.scene, object);
 
         this.scene.add(mesh);
 
