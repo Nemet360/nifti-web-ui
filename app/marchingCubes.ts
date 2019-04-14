@@ -7,7 +7,7 @@ type input = { dims:{x:number,y:number,z:number}, scalars:number[], perfusionIma
 
 
 
-type output = { p : number[], n : number[], perfusionNormals:any[], perfusionPoints:any[] };
+type output = { p : number[], n : number[], perfusionNormals:any[], perfusionPoints:any[], perfusionColors:any[], indices:number[] };
 
 
 
@@ -41,40 +41,37 @@ export const marchingCubes = () : requestData => {
 
 
 
-  // Retrieve voxel coordinates. i-j-k is origin of voxel.
   const getVoxelPoints = (i, j, k, dims, origin, spacing) => {
 
-    // (i,i+1),(j,j+1),(k,k+1) - i varies fastest; then j; then k
-
-    voxelPts[0] = origin[0] + i * spacing[0]; // 0
+    voxelPts[0] = origin[0] + i * spacing[0];
     voxelPts[1] = origin[1] + j * spacing[1];
     voxelPts[2] = origin[2] + k * spacing[2];
 
-    voxelPts[3] = voxelPts[0] + spacing[0]; // 1
+    voxelPts[3] = voxelPts[0] + spacing[0];
     voxelPts[4] = voxelPts[1];
     voxelPts[5] = voxelPts[2];
 
-    voxelPts[6] = voxelPts[0]; // 2
+    voxelPts[6] = voxelPts[0];
     voxelPts[7] = voxelPts[1] + spacing[1];
     voxelPts[8] = voxelPts[2];
 
-    voxelPts[9] = voxelPts[3]; // 3
+    voxelPts[9] = voxelPts[3];
     voxelPts[10] = voxelPts[7];
     voxelPts[11] = voxelPts[2];
 
-    voxelPts[12] = voxelPts[0]; // 4
+    voxelPts[12] = voxelPts[0];
     voxelPts[13] = voxelPts[1];
     voxelPts[14] = voxelPts[2] + spacing[2];
 
-    voxelPts[15] = voxelPts[3]; // 5
+    voxelPts[15] = voxelPts[3];
     voxelPts[16] = voxelPts[1];
     voxelPts[17] = voxelPts[14];
 
-    voxelPts[18] = voxelPts[0]; // 6
+    voxelPts[18] = voxelPts[0];
     voxelPts[19] = voxelPts[7];
     voxelPts[20] = voxelPts[14];
 
-    voxelPts[21] = voxelPts[3]; // 7
+    voxelPts[21] = voxelPts[3];
     voxelPts[22] = voxelPts[7];
     voxelPts[23] = voxelPts[14];
 
@@ -82,12 +79,12 @@ export const marchingCubes = () : requestData => {
 
 
 
-  // Compute point gradient at i-j-k location
   const getPointGradient = (i, j, k, dims, slice, spacing, s, g) => {
     let sp;
     let sm;
 
-    // x-direction
+
+    
     if (i === 0) {
       sp = s[i + 1 + j * dims[0] + k * slice];
       sm = s[i + j * dims[0] + k * slice];
@@ -102,7 +99,8 @@ export const marchingCubes = () : requestData => {
       g[0] = (0.5 * (sm - sp)) / spacing[0];
     }
 
-    // y-direction
+
+
     if (j === 0) {
       sp = s[i + (j + 1) * dims[0] + k * slice];
       sm = s[i + j * dims[0] + k * slice];
@@ -117,7 +115,8 @@ export const marchingCubes = () : requestData => {
       g[1] = (0.5 * (sm - sp)) / spacing[1];
     }
 
-    // z-direction
+
+
     if (k === 0) {
       sp = s[i + j * dims[0] + (k + 1) * slice];
       sm = s[i + j * dims[0] + k * slice];
@@ -135,7 +134,6 @@ export const marchingCubes = () : requestData => {
 
 
 
-  // Compute voxel gradient values. i-j-k is origin point of voxel.
   const getVoxelGradients = (i, j, k, dims, slice, spacing, scalars) => {
 
     const g = [];
@@ -238,7 +236,9 @@ export const marchingCubes = () : requestData => {
     spacing,
     scalars,
     points,
-    normals
+    normals,
+    colors,
+    indices
   }) => {
 
     const xyz = [];
@@ -249,14 +249,14 @@ export const marchingCubes = () : requestData => {
 
 
 
-    ids[0] = k * slice + j * dims[0] + i; // i, j, k
-    ids[1] = ids[0] + 1; // i+1, j, k
-    ids[2] = ids[0] + dims[0]; // i, j+1, k
-    ids[3] = ids[2] + 1; // i+1, j+1, k
-    ids[4] = ids[0] + slice; // i, j, k+1
-    ids[5] = ids[4] + 1; // i+1, j, k+1
-    ids[6] = ids[4] + dims[0]; // i, j+1, k+1
-    ids[7] = ids[6] + 1; // i+1, j+1, k+1
+    ids[0] = k * slice + j * dims[0] + i;
+    ids[1] = ids[0] + 1;
+    ids[2] = ids[0] + dims[0];
+    ids[3] = ids[2] + 1;
+    ids[4] = ids[0] + slice;
+    ids[5] = ids[4] + 1;
+    ids[6] = ids[4] + dims[0];
+    ids[7] = ids[6] + 1;
     
     
     
@@ -280,8 +280,6 @@ export const marchingCubes = () : requestData => {
 
     const voxelTris = caseTable.getCase(index);
 
-    //for (let ii = 0; ii < 8; ii++) { intensities[ids[ii]] += perfusionImage[ids[ii]]; }
-
 
 
     if (voxelTris[0] < 0) { return; }
@@ -293,7 +291,9 @@ export const marchingCubes = () : requestData => {
   
 
     if (model.computeNormals) {
+
       getVoxelGradients(i, j, k, dims, slice, spacing, scalars);
+
     }
 
     
@@ -335,6 +335,11 @@ export const marchingCubes = () : requestData => {
           pId = points.length / 3;
 
           points.push(xyz[0], xyz[1], xyz[2]);
+
+
+
+          if(colors){ colors.push( voxelScalars[0] ); }
+          if(indices){ indices.push(i,j,k); }
 
 
 
@@ -385,6 +390,8 @@ export const marchingCubes = () : requestData => {
 
     const perfusionNormals = [];
 
+    const perfusionColors = [];
+
 
 
     const slice = x * y;
@@ -392,6 +399,8 @@ export const marchingCubes = () : requestData => {
     const spacing = [1,1,1];
 
     const origin = [0,0,0];
+
+    const indices = [];
 
 
 
@@ -401,44 +410,39 @@ export const marchingCubes = () : requestData => {
 
         for (let i = 0; i < x - 1; ++i) {
 
+          //indices.push(pBuffer.length);
+
+
           produceTriangles({
-
             cVal:model.contourValue,
-
             i,
             j,
             k,
-        
             slice,
             dims:[x,y,z],
             origin,
             spacing,
-        
             scalars,
-        
             points:pBuffer,
-            normals:nBuffer
-
+            normals:nBuffer,
+            colors:undefined,
+            indices:undefined
           });
 
           produceTriangles({
-
             cVal:model.contourValue,
-
             i,
             j,
             k,
-        
             slice,
             dims:[x,y,z],
             origin,
             spacing,
-        
             scalars:perfusionImage,
-        
             points:perfusionPoints,
-            normals:perfusionNormals
-
+            normals:perfusionNormals,
+            colors:perfusionColors,
+            indices
           });
 
         }
@@ -447,9 +451,7 @@ export const marchingCubes = () : requestData => {
 
     }
 
-
-
-    return { p : pBuffer, n : nBuffer, perfusionPoints, perfusionNormals }
+    return { p : pBuffer, n : nBuffer, perfusionPoints, perfusionNormals, perfusionColors, indices }
 
   };
 

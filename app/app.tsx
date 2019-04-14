@@ -1,11 +1,10 @@
 import './assets/fonts/index.css'; 
 import './assets/styles.css'; 
-import '../node_modules/react-vis/dist/style.css';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Store, niftiData } from './types';
 import { reducer, defaultProps } from './reducer';
-import { isEmpty, isNil, compose, sort, drop, toPairs } from 'ramda';
+import { isEmpty, isNil, compose, sort, drop, toPairs, map, divide } from 'ramda';
 import { Provider, connect } from "react-redux";
 import { createStore } from "redux"; 
 import { Component } from "react"; 
@@ -15,8 +14,7 @@ import { fromEvent } from 'rxjs/observable/fromEvent';
 import Button from '@material-ui/core/Button';
 import Settings from '@material-ui/icons/Settings';
 import * as THREE from "three";
-import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide, BufferGeometry, Geometry } from 'three';
-
+import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide, BufferGeometry, Geometry, Raycaster } from 'three';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography'; 
@@ -37,15 +35,61 @@ import { initLights } from './utils/initLights';
 import { imageToTypedData } from './utils/imageToTypedData';
 import { reshapePerfusion } from './utils/reshapePerfusion';
 import { imageToVolume } from './utils/imageToVolume';
-import { isNotNil } from './utils/isNotNil';
-import { showNormals } from './utils/showNormals';
-
-
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+import { projectMask } from './utils/projectMask';
+import { meshFromGeometry } from './utils/meshFromGeometry';
+import { histogram } from './utils/histogram';
+import { getBoundaries } from './utils/getBoundaries';
+import { equalize } from './utils/equalize';
+
+
 
 THREE.BufferGeometry.prototype['computeBoundsTree'] = computeBoundsTree;
 THREE.BufferGeometry.prototype['disposeBoundsTree'] = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+
+
+let gaussian5 = (
+    x1, x2, x3, x4, x5,
+    x6, x7, x8, x9, x10,
+    x11, x12, X, x13, x14,
+    x15, x16, x17, x18, x19,
+    x20, x21, x22, x23, x24
+) => {
+
+    return (
+
+        0.000252*x1 + 0.00352*x2 + 0.008344*x3 + 0.00352*x4 + 0.000252*x5 +
+        0.00352*x6 + 0.049081*x7 + 0.11634*x8 + 0.049081*x9 + 0.00352*x10 +
+        0.008344*x11 + 0.11634*x12 + 0.275768*X + 0.11634*x13 +	0.008344*x14 +
+        0.00352*x15 + 0.049081*x16 + 0.11634*x17 + 0.049081*x18 + 0.00352*x19 +
+        0.000252*x20 + 0.00352*x21 + 0.008344*x22 + 0.00352*x23 + 0.000252*x24
+
+    )
+
+};
+
+
+
+let gaussian3 = (
+    y1, y2, y3,
+    y4, X, y5,
+    y6, y7, y8
+) => {
+
+    return (
+
+        1/16*y1 + 1/8*y2 + 1/16*y3 + 
+
+        1/8*y4 + 1/4*X + 1/8*y5 + 
+
+        1/16*y6 + 1/8*y7 + 1/16*y8
+
+    )
+
+};
+
 
 
 const Spinner = require('react-spinkit');
@@ -65,51 +109,10 @@ require("./SubdivisionModifier");
 
 
 
-/*
-perform_histogram_equalization(
-            image, 
-            histogram,
-            gray_levels,
-            new_grays, 
-            length,
-            width
-)
-
-int   gray_levels, new_grays;
-long  length, width;
-short **image;
-unsigned long histogram[];
-
-{
-    int i,
-    j,
-    k;
-    unsigned long sum,
-    sum_of_h[gray_levels];
-
-    double constant;
-
-    sum = 0;
-    for(i=0; i<gray_levels; i++){
-        sum         = sum + histogram[i];
-        sum_of_h[i] = sum;
-    }
-
-    constant = (float)(new_grays)/(float)(length*width);
-
-    for(i=0; i<length; i++){
-        for(j=0; j<width; j++){
-            k           = image[i][j];
-            image[i][j] = sum_of_h[k] * constant;
-        }
-    }
-
-}  
-*/
-
-
-
-interface AppState{}
+interface AppState{
+    model:any,
+    perfusion:any
+}
 
 
 
@@ -117,18 +120,18 @@ interface AppState{}
 export class App extends Component<Store,AppState>{
     anchor:HTMLElement
     resize:Subscription
+    mouse:Subscription
     menu:HTMLElement
     input_model:HTMLInputElement
     input_perfusion:HTMLInputElement
     container:HTMLElement
     boundingBox:any
     scene:Scene
+    raycaster:Raycaster
     camera:PerspectiveCamera
     renderer:WebGLRenderer
     controls:any
     localPlane:any
-    model:any 
-    perfusion:any
 
 
 
@@ -136,15 +139,52 @@ export class App extends Component<Store,AppState>{
 
         super(props);
 
-        this.state = {};
+        this.state = {
+            model:undefined,
+            perfusion:undefined
+        };
 
     } 
 
 
 
+    onMouseMove = event => {
+
+        const object = this.scene.children.find(mesh => mesh.userData.brain) as Mesh;
+
+        if(isNil(object)){ return }
+
+        const mouse = new THREE.Vector2();
+
+        mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+        
+        mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+        
+        this.raycaster.setFromCamera( mouse, this.camera );
+
+        const intersects = this.raycaster.intersectObject(object, false);
+
+        if(intersects[0])
+            console.log(
+                object.geometry['attributes'].indices.array[intersects[0].face.a*3],
+                object.geometry['attributes'].indices.array[intersects[0].face.a*3+1],
+                object.geometry['attributes'].indices.array[intersects[0].face.a*3+2]
+            );
+
+
+        //TODO
+
+    }
+
+
+
     componentDidMount(){
 
+        this.raycaster = new THREE.Raycaster();
+
         this.resize = fromEvent(window, "resize").subscribe(this.onResize);
+
+        this.mouse = fromEvent(window, "mousemove").subscribe(this.onMouseMove);
 
         this.boundingBox = this.container.getBoundingClientRect();
 
@@ -314,19 +354,15 @@ export class App extends Component<Store,AppState>{
 
     onVisualizeModel = () => {
 
-        if(isNil(this.model) || isNil(this.perfusion)){ return; }
-
-
+        if(isNil(this.state.model) || isNil(this.state.perfusion)){ return; }
 
         this.props.dispatch({ type:"multiple", load:[ {type:"error", load:""}, {type:"loading", load:true} ] });
 
-
-
         return Promise.all([ 
             
-            readNIFTIFile(this.model), 
+            readNIFTIFile(this.state.model), 
             
-            readNIFTIFile(this.perfusion) 
+            readNIFTIFile(this.state.perfusion) 
         
         ])
         .then(( [model, perfusion] : [niftiData, niftiData] ) => {
@@ -337,15 +373,13 @@ export class App extends Component<Store,AppState>{
 
             perfusion.niftiImage = imageToTypedData(perfusion.niftiImage, perfusion.niftiHeader);
 
-            const perfusionEqualized = reshapePerfusion(perfusion, model_dim); //!
+            const perfusionEqualized = reshapePerfusion(perfusion, model_dim);
 
             this.onNIFTILoaded(model, perfusionEqualized);
 
             this.props.dispatch({ type:"loading", load:false });
 
-            this.model = undefined;
-
-            this.perfusion = undefined;
+            this.setState({ model:undefined, perfusion:undefined });
         
         });
 
@@ -353,123 +387,92 @@ export class App extends Component<Store,AppState>{
 
 
 
-    meshFromGeometry = geometry => {
+    applyGaussianBlur = (colors, dims, indices) => {
+
+        let x = dims[1];
+
+        let y = dims[2];
+
+        let z = dims[3];
+
+        let slice = x*y;
+
+        const get = (k, slice, j, x, i) => {
+
+            const p = k * slice + j * x + i; 
+
+            const p1 = k * slice + (j+1) * x + (i); 
+            const p2 = k * slice + (j-1) * x + (i); 
+            const p3 = k * slice + (j) * x + (i+1); 
+            const p4 = k * slice + (j) * x + (i-1); 
+
+            const p5 = k * slice + (j+1) * x + (i+1); 
+            const p6 = k * slice + (j+1) * x + (i-1); 
+            const p7 = k * slice + (j-1) * x + (i+1); 
+            const p8 = k * slice + (j-1) * x + (i-1); 
+
+            return [ p, p1, p2, p3, p4, p5, p6, p7, p8 ];
+
+        };
+
+        for (let k = 1; k < z - 1; ++k) {
+            
+            for (let j = 1; j < y - 1; ++j) {
     
-        const material = new MeshPhysicalMaterial({
-            clippingPlanes: [ this.localPlane ],
-            vertexColors: THREE.VertexColors,
-            metalness: 0.1,
-            roughness: 0.8,
-            clearCoat: 0.2,
-            clearCoatRoughness: 0.2,
-            reflectivity: 0.0,
-            side: DoubleSide,
-            transparent: false, 
-            opacity: 1,
-            clipShadows: true,
-            depthTest: true
-        });
+              for (let i = 1; i < x - 1; ++i) {
+                    
+                    const a = get(k-1, slice, j, x, i);
 
-        const mesh = new THREE.Mesh(geometry, material);
+                    const b = get(k, slice, j, x, i);
 
-        mesh.castShadow = true;
+                    const c = get(k+1, slice, j, x, i);
 
-        mesh.receiveShadow = true;
+                    const positionIndices = [
 
-        mesh.frustumCulled = false;
+                        ...a.map(value => indices[value]), //[0]
 
-        mesh.userData.brain = true;
+                        ...b.map(value => indices[value]), //[9]
 
-        return mesh;
+                        ...c.map(value => indices[value]) //[18]
 
-    }
+                    ];
 
+                    for(let s = 1; s < positionIndices.length-1; s++){
+                        const before = positionIndices[s-1];
+                        const idx = positionIndices[s];
+                        const after = positionIndices[s+1];
 
+                        //3 colors
+                        for(let c=1; c<8; c++){
+                            //r
+                            colors[idx+c*3] = gaussian3(
+                                colors[before+(c-1)*3], colors[before+c*3], colors[before+(c+1)*3],
+                                colors[idx+(c-1)*3], colors[idx+c*3], colors[idx+(c+1)*3],
+                                colors[after+(c-1)*3], colors[after+c*3], colors[after+(c+1)*3]
+                            ) 
+                            //g    
+                            colors[idx+c*3+1] = gaussian3(
+                                colors[before+(c-1)*3+1], colors[before+c*3+1], colors[before+(c+1)*3+1],
+                                colors[idx+(c-1)*3+1], colors[idx+c*3+1], colors[idx+(c+1)*3+1],
+                                colors[after+(c-1)*3+1], colors[after+c*3+1], colors[after+(c+1)*3+1]
+                            ) 
+                            //b    
+                            colors[idx+c*3+2] = gaussian3(
+                                colors[before+(c-1)*3+2], colors[before+c*3+2], colors[before+(c+1)*3+2],
+                                colors[idx+(c-1)*3+2], colors[idx+c*3+2], colors[idx+(c+1)*3+2],
+                                colors[after+(c-1)*3+2], colors[after+c*3+2], colors[after+(c+1)*3+2]
+                            )
+                        }
 
-    getBoundaries = data => {
-        
-        let max = 0;
-    
-        let min = 0;
-    
-        for(let i=0; i<data.length; i++){
-    
-            if(data[i]<min){ min = data[i]; }
-            if(data[i]>max){ max = data[i]; }
-    
-        }
+                    }
 
-        return { min, max };
-    }
-
-
-
-    histogram = data => {
-
-        let hash = {};
-    
-        for(let i=0; i<data.length; i++){
-    
-            const value = data[i].toString();
-    
-            if(isNotNil(hash[value])){
-               hash[value] += 1;
-            }else{
-               hash[value] = 1;
+              }
+      
             }
-    
+      
         }
 
-        return hash;  
-    
-    }
-
-
-
-    colorize = (geometry:BufferGeometry, colors:number[]) => {
-
-        const geometry2 = new THREE.Geometry().fromBufferGeometry(geometry);
-
-
-
-        const lut = new THREE['Lut']('rainbow', 512);
-
-        lut.setMin(0);
-
-        lut.setMax(geometry2.faces.length+10);
-
-        for ( var i = 0; i < geometry2.faces.length; i++ ){
-
-            const face = geometry2.faces[i];
-
-            //z * slice + y * dims[0] + x
-            let c0 = i; //colors[i];
-            let c1 = colors[i*3];
-            let c2 = colors[i*3+1];
-            let c3 = colors[i*3+2];
-
-            //if(!c0){ continue }
-
-            /*let a = lut.getColor(c1);
-            let b = lut.getColor(c2);
-            let c = lut.getColor(c3);*/
-            let k = lut.getColor(c0);
-
-            const color1 = new THREE.Color(k.r, k.g, k.b);
-            const color2 = new THREE.Color(k.r, k.g, k.b); 
-            const color3 = new THREE.Color(k.r, k.g, k.b);
-/*
-            const color1 = new THREE.Color(a.r, a.g, a.b);
-            const color2 = new THREE.Color(b.r, b.g, b.b); 
-            const color3 = new THREE.Color(c.r, c.g, c.b);
-*/        
-            face.vertexColors[0] = color1
-            face.vertexColors[1] = color2;
-            face.vertexColors[2] = color3;
-
-        }
-
-        return geometry2; //new THREE.BufferGeometry().fromGeometry(geometry2);
+        return colors;
 
     }
 
@@ -479,36 +482,64 @@ export class App extends Component<Store,AppState>{
 
         this.localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
 
+
+
         const result = imageToVolume(data, perfusion);
 
         const points : number[] = result.p;
 
         const normals : number[] = result.n;
 
-        const { dims } = perfusion.niftiHeader;
+        //const { dims } = perfusion.niftiHeader;
 
-        const { min, max } = this.getBoundaries([]);
-        
-        const { perfusionNormals, perfusionPoints } = result;
+        let { 
+            perfusionNormals, 
+            perfusionPoints, 
+            perfusionColors, 
+            indices 
+        } = result;
 
-        //
+        const { perfusionColorsEqualized, min, max } = equalize(perfusionColors);
+
+
+
+        let rgb = [];
+
+        const lut = new THREE['Lut']("cooltowarm", 1024);
+
+        lut.setMin(min);
+
+        lut.setMax(max);
+
+        for(let i=0; i<perfusionColorsEqualized.length; i++){
+
+            let color = lut.getColor( perfusionColorsEqualized[i] );
+
+            rgb.push(color.r,color.g,color.b);
+
+        }
+
+
+
         let coloration = new THREE.BufferGeometry();
 
         coloration.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(perfusionNormals), 3));
 
         coloration.addAttribute('position', new THREE.BufferAttribute( new Float32Array(perfusionPoints), 3));
+
+        coloration.addAttribute('color', new THREE.BufferAttribute( new Float32Array(rgb), 3));
+
+        coloration.computeBoundingBox();
+
+
         
-        let coloration1 = this.colorize(coloration,[]) as Geometry;
-
-        coloration1.computeBoundingBox();
-        //
-
         let geometry = new THREE.BufferGeometry();
 
         let colors = [];
-        for(let i=0; i<points.length; i++){
-            colors.push(0);
-        }
+
+        for(let i=0; i<points.length/3; i++){ colors.push(1,0.895,0.741); }
+
+
 
         geometry.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(normals), 3));
 
@@ -516,93 +547,28 @@ export class App extends Component<Store,AppState>{
 
         geometry.addAttribute('color', new THREE.BufferAttribute( new Float32Array(colors), 3));
 
-        //geometry = new THREE.Geometry().fromBufferGeometry(geometry) as any;
+        geometry.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(points.length), 3));
+
 
         geometry.computeBoundingBox();
 
         geometry['computeBoundsTree']();
-
-        const mesh = this.meshFromGeometry(geometry);
-
-
-
-        //const lines = showNormals(simple);
-
-        const ray = new THREE.Raycaster();
-
-
-        coloration1.faces.forEach((face,index) => {
-            
-            if(index%1000===0){ console.log(index) }
-
-            const v1 = coloration1.vertices[face.a];  
-            const v2 = coloration1.vertices[face.b]; 
-            const v3 = coloration1.vertices[face.c]; 
-    
-            const center = new THREE.Vector3((v1.x+v2.x+v3.x)/3, (v1.y+v2.y+v3.y)/3, (v1.z+v2.z+v3.z)/3);
-            
-            const direction = new THREE.Vector3(center.x + face.normal.x,center.y + face.normal.y,center.z + face.normal.z).normalize();
-            
-            ray.set(center, direction);
-            
-            const res = ray.intersectObject(mesh, false);
-            
-            const first = res[0];
-
-            if(first){  
-
-                mesh.geometry['attributes'].color.array[first.face.a*3] = face.vertexColors[0].r;
-                mesh.geometry['attributes'].color.array[first.face.a*3+1] = face.vertexColors[0].g;
-                mesh.geometry['attributes'].color.array[first.face.a*3+2] = face.vertexColors[0].b;
         
-                mesh.geometry['attributes'].color.array[first.face.b*3] = face.vertexColors[1].r;
-                mesh.geometry['attributes'].color.array[first.face.b*3+1] = face.vertexColors[1].g;
-                mesh.geometry['attributes'].color.array[first.face.b*3+2] = face.vertexColors[1].b;
-        
-                mesh.geometry['attributes'].color.array[first.face.c*3] = face.vertexColors[2].r;
-                mesh.geometry['attributes'].color.array[first.face.c*3+1] = face.vertexColors[2].g;
-                mesh.geometry['attributes'].color.array[first.face.c*3+2] = face.vertexColors[2].b;
+        const mesh = compose(projectMask(coloration, indices), meshFromGeometry(this.localPlane))(geometry);
 
-            }
+        //mesh.geometry.attributes.color.array = this.applyGaussianBlur(geometry.attributes.color.array , dims, indices);
 
-        })
+        //mesh.geometry.attributes.color.needsUpdate = true;
 
-
-        mesh.geometry['attributes'].color.needsUpdate = true;   
-
-        /*
-        mesh.geometry['attributes'].color.array[first.face.a] = face.vertexColors[0].r;
-        mesh.geometry['attributes'].color.array[first.face.a+1] = face.vertexColors[0].g;
-        mesh.geometry['attributes'].color.array[first.face.a+2] = face.vertexColors[0].b;
-
-        mesh.geometry['attributes'].color.array[first.face.b] = face.vertexColors[1].r;
-        mesh.geometry['attributes'].color.array[first.face.b+1] = face.vertexColors[1].g;
-        mesh.geometry['attributes'].color.array[first.face.b+2] = face.vertexColors[1].b;
-
-        mesh.geometry['attributes'].color.array[first.face.c] = face.vertexColors[2].r;
-        mesh.geometry['attributes'].color.array[first.face.c+1] = face.vertexColors[2].g;
-        mesh.geometry['attributes'].color.array[first.face.c+2] = face.vertexColors[2].b;
-        */
-
-
-
-        const mesh2 = this.meshFromGeometry(coloration1);
-
-        this.scene.add(mesh2);
-
-        //mesh.add(lines);
+        //const mesh2 = meshFromGeometry(this.localPlane)(coloration);
 
         const center = getObjectCenter(mesh);
-
-
 
         const wd = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x;
 
         const hg = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
 
         const max_y = mesh.geometry.boundingBox.max.y;
-
-
 
         this.localPlane.constant = max_y;
 
@@ -627,7 +593,7 @@ export class App extends Component<Store,AppState>{
 
         const object = this.scene.children.find(mesh => mesh.userData.brain) as Mesh;
 
-        //removeObject(this.scene, object);
+        removeObject(this.scene, object);
 
         this.scene.add(mesh);
 
@@ -637,21 +603,27 @@ export class App extends Component<Store,AppState>{
 
     render() {  
 
+        const filesMissing = isNil(this.state.model) || isNil(this.state.perfusion);
+
+
+
         return <div style={{height:'100%', width:'100%', display:"flex", flexDirection:"column"}}> 
 
             <AppBar position="static">
 
-                <Toolbar variant="dense">
+                <Toolbar variant="dense" style={{background:'cornflowerblue', display:"flex", justifyContent:"space-between"}}>
 
-                    <Spinner 
-                        style={{paddingRight:"20px", visibility:this.props.loading ? "visible" : "hidden"}} 
-                        name="cube-grid" 
-                        color="steelblue" 
-                    />
+                    <div style={{display:"flex", alignItems:"center"}}>
+                        <Spinner 
+                            style={{paddingRight:"20px", visibility:this.props.loading ? "visible" : "hidden"}} 
+                            name="cube-grid" 
+                            color="aliceblue" 
+                        />
 
-                    <Typography style={{minWidth:"170px", userSelect:"none", cursor:"default"}} variant="h6" color="inherit">
-                        NIFTI Viewer
-                    </Typography>
+                        <Typography style={{userSelect:"none", cursor:"default"}} variant="h6" color="inherit">
+                            NIFTI Viewer
+                        </Typography>
+                    </div>
 
                     <div style={{display:"flex"}}>
 
@@ -667,7 +639,7 @@ export class App extends Component<Store,AppState>{
                             
                                     const file = files[0];
                             
-                                    this.model = file;
+                                    this.setState({model:file});
                             
                                 }}
                                 id="nii-upload-model"
@@ -700,7 +672,7 @@ export class App extends Component<Store,AppState>{
                             
                                     const file = files[0];
                             
-                                    this.perfusion = file;
+                                    this.setState({perfusion:file});
                             
                                 }}
                                 id="nii-upload-perfusion"
@@ -732,7 +704,7 @@ export class App extends Component<Store,AppState>{
                                 style={{textTransform:'none', whiteSpace:'nowrap'}} 
                                 size="small" 
                                 component="span"
-                                disabled={this.props.loading}
+                                disabled={this.props.loading || filesMissing}
                                 variant="contained" 
                             >
                                 <div>Visualize Model</div>
@@ -820,11 +792,13 @@ export class App extends Component<Store,AppState>{
                         </div>
                     }
 
-                    <div style={{flex:1, display:"flex", justifyContent:"flex-end", zIndex:1000}} ref={e => { this.anchor=e; }}>
+                    {/*
+                    <div style={{visibility:"hidden", flex:1, display:"flex", justifyContent:"flex-end", zIndex:1000}} ref={e => { this.anchor=e; }}>
                         <IconButton onClick={e => this.props.dispatch({type:"showSettings", load:true})}>
                             <Settings style={{color:"white"}} />
                         </IconButton>
                     </div>
+                    */}
 
                 </Toolbar>
 
@@ -836,41 +810,7 @@ export class App extends Component<Store,AppState>{
                     anchorOrigin={{vertical:'bottom', horizontal:'center'}}
                     transformOrigin={{vertical:'top', horizontal:'center'}}
                 >
-                    <div style={{width:"300px", height:"220px"}}>
-
-                        <div style={{display:"flex", flexDirection:"column", padding:"20px"}}>
-                            <Typography style={{paddingBottom:"10px"}}>Smoothing iterations: {this.props.smooth}</Typography>
-                            <Slider
-                                min={1}
-                                max={1000}
-                                step={10}
-                                value={this.props.smooth}
-                                onChange={(e,v) => this.props.dispatch({type:"smooth", load:v})}
-                            />
-                        </div>
-
-                        <div style={{display:"flex", alignItems:"center", padding:"20px"}}>
-                            <Checkbox 
-                                checked={ this.props.shouldThreshold } 
-                                onChange={e => this.props.dispatch({type:"shouldThreshold", load:!this.props.shouldThreshold})}
-                                style={{padding:"0px", color:"rgb(25, 118, 210)"}} 
-                            />   
-                            <Typography  style={{paddingLeft:"5px"}}>Threshold image</Typography>
-                        </div>   
-
-                        <div style={{display:"flex", flexDirection:"column", padding:"20px"}}>
-                            <Typography style={{paddingBottom:"10px"}}>Image threshold: {this.props.thresh}</Typography>
-                            <Slider
-                                disabled={!this.props.shouldThreshold}
-                                min={1}
-                                max={250}
-                                step={1}
-                                value={this.props.thresh}
-                                onChange={(e,v) => this.props.dispatch({type:"thresh", load:v})}
-                            />
-                        </div>
-
-                    </div> 
+                    <div style={{width:"300px", height:"220px"}}></div> 
                 </Popover>
 
             </AppBar>
