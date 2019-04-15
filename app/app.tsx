@@ -33,6 +33,7 @@ import { exportJSON } from './utils/exportJSON';
 import { exportObj } from './utils/exportObj';
 import { initLights } from './utils/initLights';
 import { imageToTypedData } from './utils/imageToTypedData';
+import Paper from '@material-ui/core/Paper';
 import { reshapePerfusion } from './utils/reshapePerfusion';
 import { imageToVolume } from './utils/imageToVolume';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
@@ -111,7 +112,10 @@ require("./SubdivisionModifier");
 
 interface AppState{
     model:any,
-    perfusion:any
+    perfusion:any,
+    x:number,
+    y:number,
+    z:number
 }
 
 
@@ -141,7 +145,10 @@ export class App extends Component<Store,AppState>{
 
         this.state = {
             model:undefined,
-            perfusion:undefined
+            perfusion:undefined,
+            x:0,
+            y:0,
+            z:0
         };
 
     } 
@@ -164,15 +171,19 @@ export class App extends Component<Store,AppState>{
 
         const intersects = this.raycaster.intersectObject(object, false);
 
-        if(intersects[0])
-            console.log(
-                object.geometry['attributes'].indices.array[intersects[0].face.a*3],
-                object.geometry['attributes'].indices.array[intersects[0].face.a*3+1],
-                object.geometry['attributes'].indices.array[intersects[0].face.a*3+2]
-            );
+        if(intersects[0]){
 
+            this.setState({
+                x:object.geometry['attributes'].indices.array[intersects[0].face.a*3],
+                y:object.geometry['attributes'].indices.array[intersects[0].face.a*3+1],
+                z:object.geometry['attributes'].indices.array[intersects[0].face.a*3+2]
+            });
 
-        //TODO
+        }else{
+
+            this.setState({x:0,y:0,z:0});
+
+        }
 
     }
 
@@ -415,11 +426,11 @@ export class App extends Component<Store,AppState>{
 
         };
 
-        for (let k = 1; k < z - 1; ++k) {
+        for (let k = 1; k < z - 1; k++) {
             
-            for (let j = 1; j < y - 1; ++j) {
+            for (let j = 1; j < y - 1; j++) {
     
-              for (let i = 1; i < x - 1; ++i) {
+              for (let i = 1; i < x - 1; i++) {
                     
                     const a = get(k-1, slice, j, x, i);
 
@@ -429,41 +440,22 @@ export class App extends Component<Store,AppState>{
 
                     const positionIndices = [
 
-                        ...a.map(value => indices[value]), //[0]
+                        ...a.map(value => indices[value]),
 
-                        ...b.map(value => indices[value]), //[9]
+                        ...b.map(value => indices[value]),
 
-                        ...c.map(value => indices[value]) //[18]
+                        ...c.map(value => indices[value])
 
                     ];
 
-                    for(let s = 1; s < positionIndices.length-1; s++){
-                        const before = positionIndices[s-1];
+                    for(let s = 0; s < positionIndices.length; s++){
                         const idx = positionIndices[s];
-                        const after = positionIndices[s+1];
 
-                        //3 colors
-                        for(let c=1; c<8; c++){
-                            //r
-                            colors[idx+c*3] = gaussian3(
-                                colors[before+(c-1)*3], colors[before+c*3], colors[before+(c+1)*3],
-                                colors[idx+(c-1)*3], colors[idx+c*3], colors[idx+(c+1)*3],
-                                colors[after+(c-1)*3], colors[after+c*3], colors[after+(c+1)*3]
-                            ) 
-                            //g    
-                            colors[idx+c*3+1] = gaussian3(
-                                colors[before+(c-1)*3+1], colors[before+c*3+1], colors[before+(c+1)*3+1],
-                                colors[idx+(c-1)*3+1], colors[idx+c*3+1], colors[idx+(c+1)*3+1],
-                                colors[after+(c-1)*3+1], colors[after+c*3+1], colors[after+(c+1)*3+1]
-                            ) 
-                            //b    
-                            colors[idx+c*3+2] = gaussian3(
-                                colors[before+(c-1)*3+2], colors[before+c*3+2], colors[before+(c+1)*3+2],
-                                colors[idx+(c-1)*3+2], colors[idx+c*3+2], colors[idx+(c+1)*3+2],
-                                colors[after+(c-1)*3+2], colors[after+c*3+2], colors[after+(c+1)*3+2]
-                            )
+                        for(let c=0; c<12; c++){
+                            colors[idx+c*3] = 0;
+                            colors[idx+c*3+1] = 0;
+                            colors[idx+c*3+2] = 0;
                         }
-
                     }
 
               }
@@ -490,13 +482,14 @@ export class App extends Component<Store,AppState>{
 
         const normals : number[] = result.n;
 
-        //const { dims } = perfusion.niftiHeader;
+        const { dims } = perfusion.niftiHeader;
 
         let { 
             perfusionNormals, 
             perfusionPoints, 
             perfusionColors, 
-            indices 
+            indices,
+            mapping 
         } = result;
 
         const { perfusionColorsEqualized, min, max } = equalize(perfusionColors);
@@ -537,7 +530,7 @@ export class App extends Component<Store,AppState>{
 
         let colors = [];
 
-        for(let i=0; i<points.length/3; i++){ colors.push(1,0.895,0.741); }
+        for(let i=0; i<points.length/3; i++){ colors.push(0.95,0.895,0.641); }
 
 
 
@@ -556,11 +549,13 @@ export class App extends Component<Store,AppState>{
         
         const mesh = compose(projectMask(coloration, indices), meshFromGeometry(this.localPlane))(geometry);
 
-        //mesh.geometry.attributes.color.array = this.applyGaussianBlur(geometry.attributes.color.array , dims, indices);
+        //mesh.geometry.attributes.color.array = this.applyGaussianBlur(geometry.attributes.color.array, dims, mapping);
 
         //mesh.geometry.attributes.color.needsUpdate = true;
 
         //const mesh2 = meshFromGeometry(this.localPlane)(coloration);
+
+        //this.scene.add(mesh2);]
 
         const center = getObjectCenter(mesh);
 
@@ -836,6 +831,58 @@ export class App extends Component<Store,AppState>{
             <div style={{position:"absolute", bottom:"0px", padding:"10px", fontSize:"12px"}}>
                 For Tzahi Nemet, April 2019
             </div>
+
+            {  
+
+                this.state.x===0 && this.state.y===0 && this.state.z===0 ? null :
+
+                <div style={{
+                    flexDirection: "column",
+                    display: "flex",
+                    width: "100px",
+                    height: "65px",
+                    position: "absolute",
+                    top: "70px",
+                    right: "25px"
+                }}> 
+                
+                    <Paper  
+                        elevation={1} 
+                        style={{
+                            height:"100%",
+                            width:"100%",
+                            display:"flex",
+                            flexDirection:"column",
+                            justifyContent:"space-between",
+                            padding:"5px"
+                        }}
+                    >
+                        <div>
+                            <div style={{display:"flex"}}>
+                                <div style={{paddingRight:"30px"}}>X</div>
+                                <div style={{fontWeight:"bold"}}>
+                                    {this.state.x}
+                                </div>
+                            </div>
+                            <div style={{display:"flex"}}>
+                                <div style={{paddingRight:"30px"}}>Y</div>
+                                <div style={{fontWeight:"bold"}}>
+                                    {this.state.y}
+                                </div>
+                            </div>
+                            <div style={{display:"flex"}}>
+                                <div style={{paddingRight:"30px"}}>Z</div>
+                                <div style={{fontWeight:"bold"}}>
+                                    {this.state.z}
+                                </div>
+                            </div>
+                        </div>
+
+                    </Paper>
+
+                </div>
+
+            }
 
         </div> 
 

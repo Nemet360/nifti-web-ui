@@ -7,7 +7,7 @@ type input = { dims:{x:number,y:number,z:number}, scalars:number[], perfusionIma
 
 
 
-type output = { p : number[], n : number[], perfusionNormals:any[], perfusionPoints:any[], perfusionColors:any[], indices:number[] };
+type output = { p : number[], n : number[], perfusionNormals:any[], perfusionPoints:any[], perfusionColors:any[], indices:number[], mapping:number[] };
 
 
 
@@ -339,6 +339,9 @@ export const marchingCubes = () : requestData => {
 
 
           if(colors){ colors.push( voxelScalars[0] ); }
+
+
+
           if(indices){ indices.push(i,j,k); }
 
 
@@ -402,6 +405,7 @@ export const marchingCubes = () : requestData => {
 
     const indices = [];
 
+    const mapping = [];
 
 
     for (let k = 0; k < z - 1; ++k) {
@@ -410,8 +414,7 @@ export const marchingCubes = () : requestData => {
 
         for (let i = 0; i < x - 1; ++i) {
 
-          //indices.push(pBuffer.length);
-
+          mapping.push(pBuffer.length);
 
           produceTriangles({
             cVal:model.contourValue,
@@ -451,7 +454,7 @@ export const marchingCubes = () : requestData => {
 
     }
 
-    return { p : pBuffer, n : nBuffer, perfusionPoints, perfusionNormals, perfusionColors, indices }
+    return { p : pBuffer, n : nBuffer, perfusionPoints, perfusionNormals, perfusionColors, indices, mapping }
 
   };
 
