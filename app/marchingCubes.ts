@@ -7,7 +7,7 @@ type input = { dims:{x:number,y:number,z:number}, scalars:number[], perfusionIma
 
 
 
-type output = { p : number[], n : number[], perfusionNormals:any[], perfusionPoints:any[], perfusionColors:any[], indices:number[], mapping:number[] };
+type output = { p : number[], n : number[], perfusionNormals:any[], perfusionPoints:any[], perfusionColors:any[], indices:number[] };
 
 
 
@@ -300,8 +300,6 @@ export const marchingCubes = () : requestData => {
 
     for (let idx = 0; voxelTris[idx] >= 0; idx += 3) {
      
-      
-
       for (let eid = 0; eid < 3; eid++) {
 
         const edgeVerts = caseTable.getEdge(voxelTris[idx + eid]);
@@ -324,7 +322,6 @@ export const marchingCubes = () : requestData => {
         if (pId === undefined) {
 
           const t = (cVal - voxelScalars[edgeVerts[0]]) / (voxelScalars[edgeVerts[1]] - voxelScalars[edgeVerts[0]]);
-
           const x0 = voxelPts.slice(edgeVerts[0] * 3, (edgeVerts[0] + 1) * 3);
           const x1 = voxelPts.slice(edgeVerts[1] * 3, (edgeVerts[1] + 1) * 3);
 
@@ -336,15 +333,9 @@ export const marchingCubes = () : requestData => {
 
           points.push(xyz[0], xyz[1], xyz[2]);
 
-
-
           if(colors){ colors.push( voxelScalars[0] ); }
 
-
-
           if(indices){ indices.push(i,j,k); }
-
-
 
           if (model.computeNormals) {
             const n0 = voxelGradients.slice( edgeVerts[0] * 3, (edgeVerts[0] + 1) * 3 );
@@ -355,8 +346,6 @@ export const marchingCubes = () : requestData => {
             normalize(n);
             normals.push(n[0], n[1], n[2]);
           }
-
-
 
           if (model.mergePoints) {
             edge[0] = ids[edgeVerts[0]];
@@ -393,7 +382,7 @@ export const marchingCubes = () : requestData => {
 
     const perfusionNormals = [];
 
-    const perfusionColors = [];
+    const colors = [];
 
 
 
@@ -405,7 +394,6 @@ export const marchingCubes = () : requestData => {
 
     const indices = [];
 
-    const mapping = [];
 
 
     for (let k = 0; k < z - 1; ++k) {
@@ -413,8 +401,6 @@ export const marchingCubes = () : requestData => {
       for (let j = 0; j < y - 1; ++j) {
 
         for (let i = 0; i < x - 1; ++i) {
-
-          mapping.push(pBuffer.length);
 
           produceTriangles({
             cVal:model.contourValue,
@@ -444,7 +430,7 @@ export const marchingCubes = () : requestData => {
             scalars:perfusionImage,
             points:perfusionPoints,
             normals:perfusionNormals,
-            colors:perfusionColors,
+            colors,
             indices
           });
 
@@ -454,7 +440,14 @@ export const marchingCubes = () : requestData => {
 
     }
 
-    return { p : pBuffer, n : nBuffer, perfusionPoints, perfusionNormals, perfusionColors, indices, mapping }
+    return { 
+      p : pBuffer, 
+      n : nBuffer, 
+      perfusionColors : colors, 
+      perfusionPoints, 
+      perfusionNormals, 
+      indices 
+    }
 
   };
 

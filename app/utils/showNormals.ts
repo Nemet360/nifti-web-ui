@@ -4,6 +4,8 @@ import { Geometry } from "three";
 
 
 export const showNormals = (coloration1:Geometry) => {
+    
+    coloration1.computeFaceNormals();
 
     let lines = new THREE.Mesh();
 
@@ -24,8 +26,8 @@ export const showNormals = (coloration1:Geometry) => {
         const to = {
             x:center.x + face.normal.x,
             y:center.y + face.normal.y,
-            z:center.z //+ face.normal.z
-        }
+            z:center.z + face.normal.z
+        };
 
         let material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
 

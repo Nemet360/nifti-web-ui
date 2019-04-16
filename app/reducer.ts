@@ -30,18 +30,13 @@ const logger = (before:Store, action:action) => (after:Store) => {
 
 export const defaultProps : Store = {  
 	showMenu:false,
-	showSettings:false,
 	error:"",
 	slice:0,
 	width:0,
 	height:0,
 	min:0,
-	reduction:0.5,
 	max:0,
-	loading:false,
-	shouldThreshold:true,
-	thresh:1,
-	smooth:500
+	loading:false
 };
 
 

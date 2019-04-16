@@ -43,6 +43,7 @@ export const equalize = values => {
         result[i] = histogramSum[ rounded[i] ];
 
         if(result[i]>max){ max = result[i] }
+        
         if(result[i]<min){ min = result[i] }
 
     }

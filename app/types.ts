@@ -11,19 +11,14 @@ export interface action{ type:keyof Store, load:any }
 
 
 export interface Store{
-    showMenu:boolean,
-    showSettings:false,
-    error:string,
-    slice:number,
-    width:number,
-    height:number,
-    min:number,
-    max:number,
-    reduction:number,
-    loading:boolean,
-    shouldThreshold:boolean,
-    thresh:number,
-    smooth:number,
+	showMenu:boolean,
+	error:string,
+	slice:number,
+	width:number,
+	height:number,
+	min:number,
+	max:number,
+	loading:false,
     dispatch?:Dispatch,
     multiple?:any
 }
