@@ -38,6 +38,7 @@ import { reshapePerfusion } from './utils/reshapePerfusion';
 import { imageToVolume } from './utils/imageToVolume';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { projectMask } from './utils/projectMask';
+import { blur } from './utils/blur';
 import { meshFromGeometry } from './utils/meshFromGeometry';
 import { histogram } from './utils/histogram';
 import { getBoundaries } from './utils/getBoundaries';
@@ -422,7 +423,7 @@ export class App extends Component<Store,AppState>{
         
 
 
-        const mesh = compose( projectMask(coloration, indices), meshFromGeometry(this.localPlane) )(geometry);
+        const mesh = compose( blur, projectMask(coloration, indices), meshFromGeometry(this.localPlane) )(geometry);
 
         const center = getObjectCenter(mesh);
 

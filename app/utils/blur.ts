@@ -18,7 +18,7 @@ const gauss = (size, sigma) => {
 
 export const blur = mesh => {
 
-    const distribution = gauss(6, 0.5);
+    const distribution = gauss(6, 0.48);
 
     for(let i=6; i<mesh.geometry['attributes'].color.array.length-6; i+=3){
         let r = [];
