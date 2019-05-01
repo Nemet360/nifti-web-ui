@@ -42,7 +42,7 @@ module.exports = env => {
           test: /\.(js|jsx)$/,
           loader: "babel-loader",
           exclude: /node_modules/
-        }    
+        }
       ]    
     },
      
@@ -50,6 +50,8 @@ module.exports = env => {
 
     plugins: [
       new CopyWebpackPlugin([{ from : "./app/assets" }]),   
+      new CopyWebpackPlugin([{ from : "./dist/script.exe" }]),
+      new CopyWebpackPlugin([{ from : "./script.py" }]),
       new HtmlWebpackPlugin({
           inject:true, 
           title:"NIFTI Viewer",     

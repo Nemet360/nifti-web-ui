@@ -4,7 +4,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Store, niftiData } from './types';
 import { reducer, defaultProps } from './reducer';
-import { isEmpty, isNil, compose, sort, drop, toPairs, map, divide, uniqBy, aperture, range } from 'ramda';
+import { isEmpty, isNil, compose, sort, drop, toPairs, map, divide, uniqBy, aperture, range, path } from 'ramda';
 import { Provider, connect } from "react-redux";
 import { createStore } from "redux"; 
 import { Component } from "react"; 
@@ -14,7 +14,7 @@ import { fromEvent } from 'rxjs/observable/fromEvent';
 import Button from '@material-ui/core/Button';
 import Settings from '@material-ui/icons/Settings';
 import * as THREE from "three";
-import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide, BufferGeometry, Geometry, Raycaster, Color } from 'three';
+import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide, BufferGeometry, Geometry, Raycaster, Color, Matrix4 } from 'three';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography'; 
@@ -61,6 +61,41 @@ require("./exporters/OBJExporter");
 
 
 
+const fromVtk = file => {
+
+    const dataPath = file.path;
+
+    if(isNil(dataPath) || isEmpty(dataPath)){ return }
+    
+    const options = { 
+        smooth:500, 
+        threshold:1, 
+        shouldThreshold:true, 
+        reductionFactor:0.5 
+    };
+
+    const loader = new THREE["STLLoader"]();
+
+    ipcRenderer.send("read:nifti", dataPath, options);
+
+    return new Promise( resolve => {
+
+        ipcRenderer.once("read:nifti",  (event,data) => {
+
+            loader.loadText(data, geometry => {
+
+                resolve(geometry)
+        
+            });
+
+        });
+
+    } )
+
+}
+
+
+
 interface AppState{
     model:any,
     perfusion:any,
@@ -76,6 +111,7 @@ export class App extends Component<Store,AppState>{
     resize:Subscription
     mouse:Subscription
     menu:HTMLElement
+    input_model0:HTMLInputElement
     input_model:HTMLInputElement
     input_perfusion:HTMLInputElement
     container:HTMLElement
@@ -121,7 +157,7 @@ export class App extends Component<Store,AppState>{
 
         const intersects = this.raycaster.intersectObject(object, false);
 
-        if(intersects[0]){
+        if(intersects[0] && object.geometry['attributes'].indices){
 
             this.setState({
                 x:object.geometry['attributes'].indices.array[intersects[0].face.a*3],
@@ -131,7 +167,7 @@ export class App extends Component<Store,AppState>{
 
         }else{
 
-            this.setState({x:0,y:0,z:0});
+            this.setState({ x:0, y:0, z:0 });
 
         }
 
@@ -139,13 +175,99 @@ export class App extends Component<Store,AppState>{
 
 
 
-    componentDidMount(){
+    onMeshLoaded = geometry => {
 
-        this.raycaster = new THREE.Raycaster();
+        //const localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
+
+        //this.localPlane = localPlane;
+
+        const material = new MeshPhysicalMaterial({
+            clippingPlanes: [ this.localPlane ],
+            //vertexColors: THREE.VertexColors,
+            color: "#ec8080",
+            //alphaTest: 0.5,
+            depthWrite: false,
+            metalness: 0.5,
+            roughness: 0.9,
+            clearCoat: 0.5,
+            clearCoatRoughness: 0.5,
+            reflectivity: 0.2,
+            side: DoubleSide,
+            transparent: true, 
+            opacity: 0.95,
+            clipShadows: true,
+            depthTest: true
+        });
+
+        geometry.computeVertexNormals();
+
+
+
+        geometry.center();
+        //let rotationMatrix = new Matrix4().makeRotationY(Math.PI);
+
+        //geometry.applyMatrix4(rotationMatrix);
+
+
+
+        const mesh = new THREE.Mesh(geometry, material);
+
+        mesh.castShadow = true;
+
+        mesh.receiveShadow = true;
+
+        mesh.userData.brain = true;
+
+        mesh.frustumCulled = false;
+
+        mesh.geometry.computeBoundingBox();
+        
+        mesh.rotation.x = Math.PI;
+
+        const wd = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x;
+
+        const hg = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
+
+        const max_y = mesh.geometry.boundingBox.max.y;
+
+        this.localPlane.constant = max_y;
+
+        this.props.dispatch({
+            type:"multiple",
+            load:[
+                {type:"slice", load:max_y},
+                {type:"max", load:max_y},
+                {type:"min", load:0}
+            ]
+        });
+
+        const center = getObjectCenter(mesh);
+
+        this.camera.position.x = wd*2;
+        this.camera.position.y = hg*2;
+        this.camera.position.z = 0;
+
+        this.controls.target.set(center.x, center.y, center.z);
+
+        this.camera.lookAt(this.controls.target);
+
+        this.scene.add(mesh);
+       
+        window['scene'] = this.scene;
+
+        this.renderer.render(this.scene, this.camera);
+
+    }
+
+
+
+    componentDidMount(){
 
         this.resize = fromEvent(window, "resize").subscribe(this.onResize);
 
         this.mouse = fromEvent(window, "mousemove").subscribe(this.onMouseMove);
+
+        this.raycaster = new THREE.Raycaster();
 
         this.boundingBox = this.container.getBoundingClientRect();
 
@@ -325,10 +447,14 @@ export class App extends Component<Store,AppState>{
             
             readNIFTIFile(this.state.model), 
             
-            readNIFTIFile(this.state.perfusion) 
-        
+            readNIFTIFile(this.state.perfusion),
+            
+            fromVtk(this.state.model).then(m => fromVtk(this.state.perfusion).then(p => [m,p])),
+
         ])
-        .then(( [model, perfusion] : [niftiData, niftiData] ) => {
+        .then(( [model, perfusion, mp] : [niftiData, niftiData, any] ) => {
+
+            const [m,p] = mp;
 
             const model_dim = { x:model.niftiHeader.dims[1],  y:model.niftiHeader.dims[2], z:model.niftiHeader.dims[3] };
 
@@ -338,7 +464,7 @@ export class App extends Component<Store,AppState>{
 
             const perfusionEqualized = reshapePerfusion(perfusion, model_dim);
 
-            this.onNIFTILoaded(model, perfusionEqualized);
+            this.onNIFTILoaded(model, perfusionEqualized, m, p);
 
             this.props.dispatch({ type:"loading", load:false });
 
@@ -350,27 +476,73 @@ export class App extends Component<Store,AppState>{
 
 
 
-    generateColorationGeometry = (perfusionPoints, perfusionNormals, perfusionColors) => {
+    onNIFTILoaded = (data:niftiData, perfusion:niftiData, g1:BufferGeometry, g2:BufferGeometry) => {
+
+        this.localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
+
+        const { 
+            perfusionNormals, 
+            perfusionPoints, 
+            perfusionColors, 
+            indices_m,
+            indices_p,
+            p,
+            n
+        } = imageToVolume(data, perfusion);
 
         const { perfusionColorsEqualized, min, max } = equalize(perfusionColors);
 
         const rgb = [];
 
-        const lut = new THREE['Lut']("cooltowarm", 512);
+        const lut = new THREE['Lut']("rainbow", 512);
 
         lut.setMin(min-1);
 
-        lut.setMax(max+1);
+        lut.setMax(max*0.95);
 
-        for(let i=0; i<perfusionColorsEqualized.length; i++){
+        for(let i = 0; i < perfusionColorsEqualized.length; i++){
 
-            let color = lut.getColor( perfusionColorsEqualized[i] );
+            const color = lut.getColor( perfusionColorsEqualized[i] );
 
-            rgb.push(color.r,color.g,color.b);
+            rgb.push(color.r, color.g, color.b);
 
         }
 
-        let coloration = new THREE.BufferGeometry();
+        const { out_index, out_position, out_color, out_normal, out_indices } = mergeVertices( 
+
+            g2.attributes.position.array as any,
+
+            g2.attributes.normal.array as any,
+
+            rgb.slice(0, g2.attributes.position.length),
+
+            indices_p.slice(0, g2.attributes.position.length)
+            //perfusionPoints, 
+            
+            //perfusionNormals, 
+            
+            //rgb, 
+            
+            //indices_p 
+            
+        );
+
+        const coloration = new THREE.BufferGeometry();
+
+        coloration.setIndex( new THREE.BufferAttribute( new Uint32Array(out_index), 1 ) );
+
+        coloration.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(out_normal), 3 ));
+
+        coloration.addAttribute('position', new THREE.BufferAttribute( new Float32Array(out_position), 3 ));
+
+        coloration.addAttribute('color', new THREE.BufferAttribute( new Float32Array(out_color), 3 ));
+
+        //coloration.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(out_indices), 3) );
+
+        coloration.computeBoundingBox();
+
+        /*
+        const coloration = new THREE.BufferGeometry();
 
         coloration.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(perfusionNormals), 3 ));
 
@@ -380,32 +552,13 @@ export class App extends Component<Store,AppState>{
 
         coloration.computeBoundingBox();
 
-        return { coloration, color:lut.getColor( (min+max)/2 ) };
-
-    }
 
 
-
-    onNIFTILoaded = (data:niftiData, perfusion:niftiData) => {
-
-        this.localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
-
-        const { 
-            perfusionNormals, 
-            perfusionPoints, 
-            perfusionColors, 
-            indices,
-            p,
-            n
-        } = imageToVolume(data, perfusion);
-  
-        const { coloration, color } = this.generateColorationGeometry(perfusionPoints, perfusionNormals, perfusionColors);
+        const color = lut.getColor( (min+max)/2 );
 
         const geometry = new THREE.BufferGeometry();
 
-        const { out_index, out_position, out_color, out_normal } = mergeVertices( p, n, color );
-
-
+        const { out_index, out_position, out_color, out_normal, out_indices } = mergeVertices( p, n, color, indices_m );
 
         geometry.setIndex( new THREE.BufferAttribute( new Uint32Array(out_index), 1 ) );
 
@@ -415,15 +568,38 @@ export class App extends Component<Store,AppState>{
 
         geometry.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(out_normal), 3) );
         
-        geometry.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(out_position.length), 3) )
+        geometry.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(out_indices), 3) );
 
         geometry.computeBoundingBox();
 
         geometry['computeBoundsTree']();
+        */
+
+        //g1.computeBoundingBox();
+        //g2.addAttribute('color', new THREE.BufferAttribute( new Float32Array(out_color), 3 ));
+        //g2.computeBoundingBox();
+
+        //this.onMeshLoaded(g1);
+
+        coloration.center();
+
+        this.onMeshLoaded(g1);
+
+        coloration.translate( 0, 5, 15 );
+
         
 
+        this.processGeometry(coloration);
 
-        const mesh = compose( blur, projectMask(coloration, indices), meshFromGeometry(this.localPlane) )(geometry);
+    }
+
+
+
+    processGeometry = coloration => {
+        
+        const mesh = compose( /*blur,*/ meshFromGeometry(this.localPlane) )(coloration);
+
+        mesh.scale.set(0.95, 0.95, 0.9);
 
         const center = getObjectCenter(mesh);
 
@@ -454,13 +630,15 @@ export class App extends Component<Store,AppState>{
             ]
         });
 
-        const object = this.scene.children.find(mesh => mesh.userData.brain) as Mesh;
+        //const object = this.scene.children.find(mesh => mesh.userData.brain) as Mesh;
 
-        removeObject(this.scene, object);
+        //removeObject(this.scene, object);
 
         this.scene.add(mesh);
 
     }
+
+
 
 
 

@@ -8,14 +8,15 @@ export const meshFromGeometry = localPlane => geometry => {
     const material = new MeshPhysicalMaterial({
         clippingPlanes: [ localPlane ],
         vertexColors: THREE.VertexColors,
-        metalness: 0.1,
+        metalness: 0.4,
         roughness: 0.8,
-        clearCoat: 0.2,
-        clearCoatRoughness: 0.2,
-        reflectivity: 0.0,
+        clearCoat: 0.8,
+        //depthWrite: false,
+        clearCoatRoughness: 0.8,
+        reflectivity: 0.8,
         side: DoubleSide,
-        transparent: false, 
-        opacity: 1,
+        transparent: true, 
+        opacity:0.6,
         clipShadows: true,
         depthTest: true
     });

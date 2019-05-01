@@ -3,11 +3,23 @@ import { normalize } from './utils/normalize';
 
 
 
-type input = { dims:{x:number,y:number,z:number}, scalars:number[], perfusionImage:number[]};
+type input = { 
+  dims:{ x:number, y:number, z:number }, 
+  scalars:number[], 
+  perfusionImage:number[] 
+};
 
 
 
-type output = { p : number[], n : number[], perfusionNormals:any[], perfusionPoints:any[], perfusionColors:any[], indices:number[] };
+type output = { 
+  p : number[], 
+  n : number[], 
+  perfusionNormals:any[], 
+  perfusionPoints:any[], 
+  perfusionColors:any[], 
+  indices_p:number[], 
+  indices_m:number[] 
+};
 
 
 
@@ -333,7 +345,22 @@ export const marchingCubes = () : requestData => {
 
           points.push(xyz[0], xyz[1], xyz[2]);
 
-          if(colors){ colors.push( voxelScalars[0] ); }
+          if(colors){ 
+            
+            colors.push(
+              ( 
+                voxelScalars[0]+
+                voxelScalars[1]+ 
+                voxelScalars[2]+
+                voxelScalars[3]+
+                voxelScalars[4]+ 
+                voxelScalars[5]+
+                voxelScalars[6]+
+                voxelScalars[7]
+              )/7
+            ); 
+          
+          }
 
           if(indices){ indices.push(i,j,k); }
 
@@ -370,7 +397,7 @@ export const marchingCubes = () : requestData => {
 
   return input => {
 
-    const {dims, scalars, perfusionImage} = input;
+    const { dims, scalars, perfusionImage } = input;
     
     const pBuffer = [];
 
@@ -392,7 +419,9 @@ export const marchingCubes = () : requestData => {
 
     const origin = [0,0,0];
 
-    const indices = [];
+    const indices_m = [];
+
+    const indices_p = [];
 
 
 
@@ -415,7 +444,7 @@ export const marchingCubes = () : requestData => {
             points:pBuffer,
             normals:nBuffer,
             colors:undefined,
-            indices:undefined
+            indices:indices_m
           });
 
           produceTriangles({
@@ -431,7 +460,7 @@ export const marchingCubes = () : requestData => {
             points:perfusionPoints,
             normals:perfusionNormals,
             colors,
-            indices
+            indices:indices_p
           });
 
         }
@@ -446,7 +475,8 @@ export const marchingCubes = () : requestData => {
       perfusionColors : colors, 
       perfusionPoints, 
       perfusionNormals, 
-      indices 
+      indices_m,
+      indices_p 
     }
 
   };

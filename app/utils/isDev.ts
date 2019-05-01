@@ -1,6 +1,6 @@
 
 export const isDev = () => {
 
-    return false
+    return true
 
-} 
+}  

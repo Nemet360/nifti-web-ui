@@ -18,17 +18,10 @@ export const projectMask = (coloration:THREE.BufferGeometry, indices) => (mesh:T
     let v2; 
     let v3; 
     let res;
+    let distance = 0;
 
     insider.faces.forEach((face,index) => {
 
-        if(
-            face.vertexColors[0].r===1 && face.vertexColors[0].g===1 && face.vertexColors[0].b===1 &&
-            face.vertexColors[1].r===1 && face.vertexColors[1].g===1 && face.vertexColors[1].b===1 &&
-            face.vertexColors[2].r===1 && face.vertexColors[2].g===1 && face.vertexColors[2].b===1
-        ){
-            return;
-        }
-        
         v1 = insider.vertices[face.a];  
         v2 = insider.vertices[face.b]; 
         v3 = insider.vertices[face.c]; 
@@ -48,7 +41,13 @@ export const projectMask = (coloration:THREE.BufferGeometry, indices) => (mesh:T
         res = ray.intersectObject(mesh, false);
 
         res.forEach(first => {
+            if(first.distance>distance){
+                distance = first.distance;
+            }
 
+            if(first.distance>1){ return; }
+
+            /*
             mesh.geometry['attributes'].indices.array[first.face.a*3] = indices[face.a*3];
             mesh.geometry['attributes'].indices.array[first.face.a*3+1] = indices[face.a*3+1];
             mesh.geometry['attributes'].indices.array[first.face.a*3+2] = indices[face.a*3+2];
@@ -60,6 +59,7 @@ export const projectMask = (coloration:THREE.BufferGeometry, indices) => (mesh:T
             mesh.geometry['attributes'].indices.array[first.face.c*3] = indices[face.c*3];
             mesh.geometry['attributes'].indices.array[first.face.c*3+1] = indices[face.c*3+1];
             mesh.geometry['attributes'].indices.array[first.face.c*3+2] = indices[face.c*3+2];
+            */
             
             mesh.geometry['attributes'].color.array[first.face.a*3] = face.vertexColors[0].r;
             mesh.geometry['attributes'].color.array[first.face.a*3+1] = face.vertexColors[0].g;
@@ -77,6 +77,8 @@ export const projectMask = (coloration:THREE.BufferGeometry, indices) => (mesh:T
 
     });
     
+    console.log("max distance", distance);
+
     mesh.geometry['attributes'].color.needsUpdate = true;  
 
     return mesh;
