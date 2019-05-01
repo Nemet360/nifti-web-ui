@@ -349,7 +349,7 @@ export class App extends Component<Store,AppState>{
         const { width, height } = this.container.getBoundingClientRect();
 
         this.scene = new Scene();
-
+        window['scene'] = this.scene;
         this.camera = new PerspectiveCamera(50, width/height, 1, 2000); 
         this.camera.position.set(50,50,50);
         this.camera.lookAt(new Vector3(0,0,0)); 
@@ -464,7 +464,7 @@ export class App extends Component<Store,AppState>{
 
             const perfusionEqualized = reshapePerfusion(perfusion, model_dim);
 
-            this.onNIFTILoaded(model, perfusionEqualized, m, p);
+            this.onNIFTILoaded(model, perfusionEqualized/*, m, p*/);
 
             this.props.dispatch({ type:"loading", load:false });
 
@@ -476,7 +476,7 @@ export class App extends Component<Store,AppState>{
 
 
 
-    onNIFTILoaded = (data:niftiData, perfusion:niftiData, g1:BufferGeometry, g2:BufferGeometry) => {
+    onNIFTILoaded = (data:niftiData, perfusion:niftiData/*, g1:BufferGeometry, g2:BufferGeometry*/) => {
 
         this.localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
 
@@ -510,37 +510,38 @@ export class App extends Component<Store,AppState>{
 
         const { out_index, out_position, out_color, out_normal, out_indices } = mergeVertices( 
 
-            g2.attributes.position.array as any,
+            /*g2.attributes.position.array as any,
 
             g2.attributes.normal.array as any,
 
             rgb.slice(0, g2.attributes.position.length),
 
-            indices_p.slice(0, g2.attributes.position.length)
-            //perfusionPoints, 
+            indices_p.slice(0, g2.attributes.position.length)*/
+            perfusionPoints, 
             
-            //perfusionNormals, 
+            perfusionNormals, 
             
-            //rgb, 
+            rgb, 
             
-            //indices_p 
+            indices_p 
             
         );
 
+        
         const coloration = new THREE.BufferGeometry();
 
-        coloration.setIndex( new THREE.BufferAttribute( new Uint32Array(out_index), 1 ) );
+        //coloration.setIndex( new THREE.BufferAttribute( new Uint32Array(out_index), 1 ) );
 
-        coloration.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(out_normal), 3 ));
+        coloration.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(perfusionNormals), 3 ));
 
-        coloration.addAttribute('position', new THREE.BufferAttribute( new Float32Array(out_position), 3 ));
+        coloration.addAttribute('position', new THREE.BufferAttribute( new Float32Array(perfusionPoints), 3 ));
 
-        coloration.addAttribute('color', new THREE.BufferAttribute( new Float32Array(out_color), 3 ));
+        coloration.addAttribute('color', new THREE.BufferAttribute( new Float32Array(rgb), 3 ));
 
         //coloration.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(out_indices), 3) );
 
         coloration.computeBoundingBox();
-
+        
         /*
         const coloration = new THREE.BufferGeometry();
 
@@ -551,55 +552,60 @@ export class App extends Component<Store,AppState>{
         coloration.addAttribute('color', new THREE.BufferAttribute( new Float32Array(rgb), 3 ));
 
         coloration.computeBoundingBox();
-
-
-
-        const color = lut.getColor( (min+max)/2 );
+        */
 
         const geometry = new THREE.BufferGeometry();
 
-        const { out_index, out_position, out_color, out_normal, out_indices } = mergeVertices( p, n, color, indices_m );
+        const colors = [];
 
-        geometry.setIndex( new THREE.BufferAttribute( new Uint32Array(out_index), 1 ) );
+        const color = lut.getColor( (min+max)/2 );
 
-        geometry.addAttribute('position', new THREE.BufferAttribute( new Float32Array(out_position), 3) );
+        for(let i = 0; i < p.length-3; i+=3){
 
-        geometry.addAttribute('color', new THREE.BufferAttribute( new Float32Array(out_color), 3) );
+            colors.push(0.9, 1, 0.9);
 
-        geometry.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(out_normal), 3) );
+        }    
+
+        const rep = mergeVertices( p, n, colors, indices_m );
+
+        geometry.setIndex( new THREE.BufferAttribute( new Uint32Array(rep.out_index), 1 ) );
+
+        geometry.addAttribute('position', new THREE.BufferAttribute( new Float32Array(rep.out_position), 3) );
+
+        geometry.addAttribute('color', new THREE.BufferAttribute( new Float32Array(rep.out_color), 3) );
+
+        geometry.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(rep.out_normal), 3) );
         
-        geometry.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(out_indices), 3) );
+        geometry.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(rep.out_indices), 3) );
 
         geometry.computeBoundingBox();
 
         geometry['computeBoundsTree']();
-        */
-
+        
         //g1.computeBoundingBox();
         //g2.addAttribute('color', new THREE.BufferAttribute( new Float32Array(out_color), 3 ));
         //g2.computeBoundingBox();
-
         //this.onMeshLoaded(g1);
 
         coloration.center();
 
-        this.onMeshLoaded(g1);
-
-        coloration.translate( 0, 5, 15 );
-
-        
-
-        this.processGeometry(coloration);
+        geometry.center();
+        //this.onMeshLoaded(g1);
+        //coloration.translate( 0, 5, 10 );
+        this.processGeometry(coloration, geometry);
 
     }
 
+ 
 
+    processGeometry = (coloration,geometry) => {
 
-    processGeometry = coloration => {
-        
+        const mesh2 = compose( /*blur,*/ projectMask(coloration, []), meshFromGeometry(this.localPlane, true) )(geometry);
+
         const mesh = compose( /*blur,*/ meshFromGeometry(this.localPlane) )(coloration);
 
-        mesh.scale.set(0.95, 0.95, 0.9);
+     
+        //mesh.scale.set(0.95, 0.95, 0.9);
 
         const center = getObjectCenter(mesh);
 
@@ -635,10 +641,9 @@ export class App extends Component<Store,AppState>{
         //removeObject(this.scene, object);
 
         this.scene.add(mesh);
+        this.scene.add(mesh2);
 
     }
-
-
 
 
 
