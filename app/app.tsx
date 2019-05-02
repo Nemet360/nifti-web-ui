@@ -356,11 +356,11 @@ export class App extends Component<Store,AppState>{
 
         const rgb = [];
 
-        const lut = new THREE['Lut']("cooltowarm", 512);
+        const lut = new THREE['Lut']("rainbow", 512);
 
         lut.setMin(min-1);
-
-        lut.setMax(max+1);
+    
+        lut.setMax(max*0.95);
 
         for(let i=0; i<perfusionColorsEqualized.length; i++){
 
@@ -423,7 +423,7 @@ export class App extends Component<Store,AppState>{
         
 
 
-        const mesh = compose( blur, projectMask(coloration, indices), meshFromGeometry(this.localPlane) )(geometry);
+        const mesh = compose( /*blur,*/ projectMask(coloration, indices), meshFromGeometry(this.localPlane) )(geometry);
 
         const center = getObjectCenter(mesh);
 

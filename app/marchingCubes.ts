@@ -333,7 +333,22 @@ export const marchingCubes = () : requestData => {
 
           points.push(xyz[0], xyz[1], xyz[2]);
 
-          if(colors){ colors.push( voxelScalars[0] ); }
+          if(colors){ 
+            
+            colors.push(
+              ( 
+                voxelScalars[0]+
+                voxelScalars[1]+ 
+                voxelScalars[2]+
+                voxelScalars[3]+
+                voxelScalars[4]+ 
+                voxelScalars[5]+
+                voxelScalars[6]+
+                voxelScalars[7]
+              )/7
+            ); 
+          
+          }
 
           if(indices){ indices.push(i,j,k); }
 

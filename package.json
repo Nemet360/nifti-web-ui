@@ -3,7 +3,7 @@
   "productName": "NIFTIViewer",
   "version": "0.0.3",
   "description": "",
-  "main": "production/main.js",
+  "main": "development/main.js",
   "scripts": {
     "start": "node_modules/.bin/electron .",
     "build:renderer:production": "webpack -w --env production --config webpack.config.js",

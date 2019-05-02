@@ -9,13 +9,13 @@ export const meshFromGeometry = localPlane => geometry => {
         clippingPlanes: [ localPlane ],
         vertexColors: THREE.VertexColors,
         metalness: 0.1,
-        roughness: 0.8,
+        roughness: 0.7,
         clearCoat: 0.2,
         clearCoatRoughness: 0.2,
-        reflectivity: 0.0,
+        reflectivity: 0.2,
         side: DoubleSide,
-        transparent: false, 
-        opacity: 1,
+        transparent: true, 
+        opacity: 0.7,
         clipShadows: true,
         depthTest: true
     });
