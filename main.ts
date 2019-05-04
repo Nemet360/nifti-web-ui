@@ -72,11 +72,7 @@ const onWindowLoaded = () => {
 
   win.webContents.send("loaded");
 
-  if(isDev()){
-
-    win.webContents.openDevTools();
-    
-  }
+  win.webContents.openDevTools();
 
 }
 

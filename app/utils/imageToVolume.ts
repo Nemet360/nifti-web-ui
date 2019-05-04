@@ -3,18 +3,17 @@ import { niftiData } from '../types';
 
  
 
-export const imageToVolume = (data:niftiData, perfusion:niftiData) => {
+export const imageToVolume = (perfusion:niftiData) => {
 
     const requestData = marchingCubes(); 
 
     return requestData({
         dims:{ 
-            x:data.niftiHeader.dims[1],
-            y:data.niftiHeader.dims[2], 
-            z:data.niftiHeader.dims[3] 
+            x:perfusion.niftiHeader.dims[1],
+            y:perfusion.niftiHeader.dims[2], 
+            z:perfusion.niftiHeader.dims[3] 
         }, 
-        scalars:data.niftiImage,
-        perfusionImage:perfusion.niftiImage
+        scalars:perfusion.niftiImage
     });
 
 }

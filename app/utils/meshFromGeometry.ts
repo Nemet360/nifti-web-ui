@@ -3,20 +3,21 @@ import { MeshPhysicalMaterial, DoubleSide } from 'three';
 
 
 
-export const meshFromGeometry = (localPlane,t?)=> (geometry) => {
+export const meshFromGeometry = (localPlane, model) => geometry => {
     
     const material = new MeshPhysicalMaterial({
         clippingPlanes: [ localPlane ],
-        vertexColors: THREE.VertexColors,
+        vertexColors: model ? undefined : THREE.VertexColors,
+        color: model ? "#ec8080" : undefined,
         metalness: 0.4,
         roughness: 0.8,
         clearCoat: 0.2,
-        //depthWrite: false,
+        depthWrite: ! model,
         clearCoatRoughness: 0.2,
         reflectivity: 0.2,
         side: DoubleSide,
-        transparent: false, //t ? true : false, 
-        opacity: 1, //t ? 0.7 : 0.7,
+        transparent : model,
+        opacity: model ? 0.5 : 1,
         clipShadows: true,
         depthTest: true
     });

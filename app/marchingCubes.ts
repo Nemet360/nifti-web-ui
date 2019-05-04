@@ -5,20 +5,16 @@ import { normalize } from './utils/normalize';
 
 type input = { 
   dims:{ x:number, y:number, z:number }, 
-  scalars:number[], 
-  perfusionImage:number[] 
+  scalars:number[]
 };
 
 
 
 type output = { 
-  p : number[], 
-  n : number[], 
   perfusionNormals:any[], 
   perfusionPoints:any[], 
-  perfusionColors:any[], 
-  indices_p:number[], 
-  indices_m:number[] 
+  perfusionColors:any[]
+  indices_p:number[]
 };
 
 
@@ -357,7 +353,7 @@ export const marchingCubes = () : requestData => {
                 voxelScalars[5]+
                 voxelScalars[6]+
                 voxelScalars[7]
-              )/7
+              )/8
             ); 
           
           }
@@ -397,12 +393,8 @@ export const marchingCubes = () : requestData => {
 
   return input => {
 
-    const { dims, scalars, perfusionImage } = input;
+    const { dims, scalars } = input;
     
-    const pBuffer = [];
-
-    const nBuffer = [];
-
     const { x,y,z } = dims;
 
     const perfusionPoints = [];
@@ -415,11 +407,9 @@ export const marchingCubes = () : requestData => {
 
     const slice = x * y;
 
-    const spacing = [1,1,1];
+    const spacing = [1,1,1]; //[1.5, 1.5, 1.5]
 
     const origin = [0,0,0];
-
-    const indices_m = [];
 
     const indices_p = [];
 
@@ -441,22 +431,6 @@ export const marchingCubes = () : requestData => {
             origin,
             spacing,
             scalars,
-            points:pBuffer,
-            normals:nBuffer,
-            colors:undefined,
-            indices:indices_m
-          });
-
-          produceTriangles({
-            cVal:model.contourValue,
-            i,
-            j,
-            k,
-            slice,
-            dims:[x,y,z],
-            origin,
-            spacing,
-            scalars:perfusionImage,
             points:perfusionPoints,
             normals:perfusionNormals,
             colors,
@@ -470,15 +444,12 @@ export const marchingCubes = () : requestData => {
     }
 
     return { 
-      p : pBuffer, 
-      n : nBuffer, 
       perfusionColors : colors, 
       perfusionPoints, 
       perfusionNormals, 
-      indices_m,
       indices_p 
-    }
+    } as output
 
-  };
+  }
 
 }

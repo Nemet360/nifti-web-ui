@@ -12,7 +12,6 @@ import { ipcRenderer, remote } from 'electron';
 import { Subscription } from 'rxjs';
 import { fromEvent } from 'rxjs/observable/fromEvent'; 
 import Button from '@material-ui/core/Button';
-import Settings from '@material-ui/icons/Settings';
 import * as THREE from "three";
 import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, MeshPhysicalMaterial, DoubleSide, BufferGeometry, Geometry, Raycaster, Color, Matrix4 } from 'three';
 import AppBar from '@material-ui/core/AppBar';
@@ -21,12 +20,8 @@ import Typography from '@material-ui/core/Typography';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import Slider from '@material-ui/lab/Slider';
-import Popover from '@material-ui/core/Popover';
-import IconButton from '@material-ui/core/IconButton';
-import Checkbox from '@material-ui/core/Checkbox';
 import { readNIFTIFile } from './utils/readNIFTIFile';
 import { getObjectCenter } from './utils/getObjectCenter';
-import { removeObject } from './utils/removeObject';
 import { attachDispatchToProps } from './utils/attachDispatchToProps';
 import { exportStl } from './utils/exportStl';
 import { exportJSON } from './utils/exportJSON';
@@ -34,17 +29,13 @@ import { exportObj } from './utils/exportObj';
 import { initLights } from './utils/initLights';
 import { imageToTypedData } from './utils/imageToTypedData';
 import Paper from '@material-ui/core/Paper';
-import { reshapePerfusion } from './utils/reshapePerfusion';
 import { imageToVolume } from './utils/imageToVolume';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
-import { projectMask } from './utils/projectMask';
-import { blur } from './utils/blur';
 import { meshFromGeometry } from './utils/meshFromGeometry';
-import { histogram } from './utils/histogram';
-import { getBoundaries } from './utils/getBoundaries';
 import { equalize } from './utils/equalize';
 import { mergeVertices } from './utils/mergeVertices';
-import { showNormals } from './utils/showNormals';
+import { fromVtk } from './utils/fromVtk';
+import { stlToGeometry } from './utils/stlToGeometry';
 const Spinner = require('react-spinkit');
 const colormap = require('colormap');
 THREE.BufferGeometry.prototype['computeBoundsTree'] = computeBoundsTree;
@@ -60,37 +51,17 @@ require("./exporters/STLExporter");
 require("./exporters/OBJExporter");
 
 
+const getCenterPoint = mesh => {
 
-const fromVtk = file => {
+    const geometry = mesh.geometry;
 
-    const dataPath = file.path;
+    geometry.computeBoundingBox();   
 
-    if(isNil(dataPath) || isEmpty(dataPath)){ return }
-    
-    const options = { 
-        smooth:500, 
-        threshold:1, 
-        shouldThreshold:true, 
-        reductionFactor:0.5 
-    };
+    const center = geometry.boundingBox.getCenter();
 
-    const loader = new THREE["STLLoader"]();
+    mesh.localToWorld( center );
 
-    ipcRenderer.send("read:nifti", dataPath, options);
-
-    return new Promise( resolve => {
-
-        ipcRenderer.once("read:nifti",  (event,data) => {
-
-            loader.loadText(data, geometry => {
-
-                resolve(geometry)
-        
-            });
-
-        });
-
-    } )
+    return center;
 
 }
 
@@ -170,92 +141,6 @@ export class App extends Component<Store,AppState>{
             this.setState({ x:0, y:0, z:0 });
 
         }
-
-    }
-
-
-
-    onMeshLoaded = geometry => {
-
-        //const localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
-
-        //this.localPlane = localPlane;
-
-        const material = new MeshPhysicalMaterial({
-            clippingPlanes: [ this.localPlane ],
-            //vertexColors: THREE.VertexColors,
-            color: "#ec8080",
-            //alphaTest: 0.5,
-            depthWrite: false,
-            metalness: 0.5,
-            roughness: 0.9,
-            clearCoat: 0.5,
-            clearCoatRoughness: 0.5,
-            reflectivity: 0.2,
-            side: DoubleSide,
-            transparent: true, 
-            opacity: 0.95,
-            clipShadows: true,
-            depthTest: true
-        });
-
-        geometry.computeVertexNormals();
-
-
-
-        geometry.center();
-        //let rotationMatrix = new Matrix4().makeRotationY(Math.PI);
-
-        //geometry.applyMatrix4(rotationMatrix);
-
-
-
-        const mesh = new THREE.Mesh(geometry, material);
-
-        mesh.castShadow = true;
-
-        mesh.receiveShadow = true;
-
-        mesh.userData.brain = true;
-
-        mesh.frustumCulled = false;
-
-        mesh.geometry.computeBoundingBox();
-        
-        mesh.rotation.x = Math.PI;
-
-        const wd = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x;
-
-        const hg = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
-
-        const max_y = mesh.geometry.boundingBox.max.y;
-
-        this.localPlane.constant = max_y;
-
-        this.props.dispatch({
-            type:"multiple",
-            load:[
-                {type:"slice", load:max_y},
-                {type:"max", load:max_y},
-                {type:"min", load:0}
-            ]
-        });
-
-        const center = getObjectCenter(mesh);
-
-        this.camera.position.x = wd*2;
-        this.camera.position.y = hg*2;
-        this.camera.position.z = 0;
-
-        this.controls.target.set(center.x, center.y, center.z);
-
-        this.camera.lookAt(this.controls.target);
-
-        this.scene.add(mesh);
-       
-        window['scene'] = this.scene;
-
-        this.renderer.render(this.scene, this.camera);
 
     }
 
@@ -439,56 +324,54 @@ export class App extends Component<Store,AppState>{
 
         if(isNil(this.state.model) || isNil(this.state.perfusion)){ return; }
 
-        this.props.dispatch({ type:"multiple", load:[ {type:"error", load:""}, {type:"loading", load:true} ] });
+        this.props.dispatch({ type:"multiple", load:[ { type:"error", load:"" }, { type:"loading", load:true } ] });
 
 
 
         return Promise.all([ 
             
-            readNIFTIFile(this.state.model), 
-            
             readNIFTIFile(this.state.perfusion),
             
-            fromVtk(this.state.model).then(m => fromVtk(this.state.perfusion).then(p => [m,p])),
+            fromVtk(this.state.model, this.state.perfusion)
 
         ])
-        .then(( [model, perfusion, mp] : [niftiData, niftiData, any] ) => {
-
-            const [m,p] = mp;
-
-            const model_dim = { x:model.niftiHeader.dims[1],  y:model.niftiHeader.dims[2], z:model.niftiHeader.dims[3] };
-
-            model.niftiImage = imageToTypedData(model.niftiImage, model.niftiHeader);
+        .then(( [perfusion, mp] : [niftiData, any] ) => {
 
             perfusion.niftiImage = imageToTypedData(perfusion.niftiImage, perfusion.niftiHeader);
 
-            const perfusionEqualized = reshapePerfusion(perfusion, model_dim);
+            return Promise.all([
 
-            this.onNIFTILoaded(model, perfusionEqualized/*, m, p*/);
+                stlToGeometry(mp[0]),
 
-            this.props.dispatch({ type:"loading", load:false });
+                stlToGeometry(mp[1])
 
-            this.setState({ model:undefined, perfusion:undefined });
-        
+            ])
+            .then(([g1,g2] : any) => {
+
+                this.onNIFTILoaded(perfusion, g1, g2);
+
+                this.props.dispatch({ type:"loading", load:false });
+    
+                this.setState({ model:undefined, perfusion:undefined });
+
+            })
+
         });
 
     }
 
 
 
-    onNIFTILoaded = (data:niftiData, perfusion:niftiData/*, g1:BufferGeometry, g2:BufferGeometry*/) => {
-
+    onNIFTILoaded = (perfusion:niftiData, modelGeometry:BufferGeometry, p:BufferGeometry) => {
+ 
         this.localPlane = new THREE.Plane( new THREE.Vector3(0, -1, 0), 0.8 );
 
         const { 
             perfusionNormals, 
             perfusionPoints, 
-            perfusionColors, 
-            indices_m,
-            indices_p,
-            p,
-            n
-        } = imageToVolume(data, perfusion);
+            perfusionColors,
+            indices_p
+        } = imageToVolume(perfusion);
 
         const { perfusionColorsEqualized, min, max } = equalize(perfusionColors);
 
@@ -510,110 +393,61 @@ export class App extends Component<Store,AppState>{
 
         const { out_index, out_position, out_color, out_normal, out_indices } = mergeVertices( 
 
-            /*g2.attributes.position.array as any,
+            p.attributes.position.array as any,
 
-            g2.attributes.normal.array as any,
+            p.attributes.normal.array as any,
 
-            rgb.slice(0, g2.attributes.position.length),
+            rgb.slice(0, p.attributes.position.length), //TODO FIX
 
-            indices_p.slice(0, g2.attributes.position.length)*/
-            perfusionPoints, 
-            
-            perfusionNormals, 
-            
-            rgb, 
-            
-            indices_p 
+            indices_p.slice(0, p.attributes.position.length)
             
         );
 
+        const perfusionGeometry = new THREE.BufferGeometry();
+
+        perfusionGeometry.setIndex( new THREE.BufferAttribute( new Uint32Array(out_index), 1 ) );
+
+        perfusionGeometry.addAttribute('position', new THREE.BufferAttribute( new Float32Array(out_position), 3) );
+
+        perfusionGeometry.addAttribute('color', new THREE.BufferAttribute( new Float32Array(out_color), 3) );
+
+        perfusionGeometry.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(out_normal), 3) );
         
-        const coloration = new THREE.BufferGeometry();
+        perfusionGeometry.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(out_indices), 3) );
 
-        //coloration.setIndex( new THREE.BufferAttribute( new Uint32Array(out_index), 1 ) );
+        perfusionGeometry.computeBoundingBox();
 
-        coloration.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(perfusionNormals), 3 ));
+        modelGeometry.computeBoundingBox();
 
-        coloration.addAttribute('position', new THREE.BufferAttribute( new Float32Array(perfusionPoints), 3 ));
-
-        coloration.addAttribute('color', new THREE.BufferAttribute( new Float32Array(rgb), 3 ));
-
-        //coloration.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(out_indices), 3) );
-
-        coloration.computeBoundingBox();
-        
-        /*
-        const coloration = new THREE.BufferGeometry();
-
-        coloration.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(perfusionNormals), 3 ));
-
-        coloration.addAttribute('position', new THREE.BufferAttribute( new Float32Array(perfusionPoints), 3 ));
-
-        coloration.addAttribute('color', new THREE.BufferAttribute( new Float32Array(rgb), 3 ));
-
-        coloration.computeBoundingBox();
-        */
-
-        const geometry = new THREE.BufferGeometry();
-
-        const colors = [];
-
-        const color = lut.getColor( (min+max)/2 );
-
-        for(let i = 0; i < p.length-3; i+=3){
-
-            colors.push(0.9, 1, 0.9);
-
-        }    
-
-        const rep = mergeVertices( p, n, colors, indices_m );
-
-        geometry.setIndex( new THREE.BufferAttribute( new Uint32Array(rep.out_index), 1 ) );
-
-        geometry.addAttribute('position', new THREE.BufferAttribute( new Float32Array(rep.out_position), 3) );
-
-        geometry.addAttribute('color', new THREE.BufferAttribute( new Float32Array(rep.out_color), 3) );
-
-        geometry.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(rep.out_normal), 3) );
-        
-        geometry.addAttribute('indices', new THREE.BufferAttribute( new Float32Array(rep.out_indices), 3) );
-
-        geometry.computeBoundingBox();
-
-        geometry['computeBoundsTree']();
-        
-        //g1.computeBoundingBox();
-        //g2.addAttribute('color', new THREE.BufferAttribute( new Float32Array(out_color), 3 ));
-        //g2.computeBoundingBox();
-        //this.onMeshLoaded(g1);
-
-        coloration.center();
-
-        geometry.center();
-        //this.onMeshLoaded(g1);
-        //coloration.translate( 0, 5, 10 );
-        this.processGeometry(coloration, geometry);
+        this.processGeometry(modelGeometry, perfusionGeometry);
 
     }
 
  
 
-    processGeometry = (coloration,geometry) => {
+    processGeometry = (model, perfusion) => {
 
-        const mesh2 = compose( /*blur,*/ projectMask(coloration, []), meshFromGeometry(this.localPlane, true) )(geometry);
+        const modelMesh = meshFromGeometry(this.localPlane, true)(model);
 
-        const mesh = compose( /*blur,*/ meshFromGeometry(this.localPlane) )(coloration);
+        const perfusionMesh = meshFromGeometry(this.localPlane, false)(perfusion);
 
-     
-        //mesh.scale.set(0.95, 0.95, 0.9);
+        modelMesh.geometry.center();
 
-        const center = getObjectCenter(mesh);
+        perfusionMesh.geometry.center();
 
-        const wd = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x;
+        perfusionMesh.rotation.x = Math.PI;
 
-        const hg = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
+        perfusionMesh.rotation.z = Math.PI;
 
-        const max_y = mesh.geometry.boundingBox.max.y;
+        perfusionMesh.geometry.translate(0,0,10);
+
+        const center = getObjectCenter(modelMesh);
+
+        const wd = modelMesh.geometry.boundingBox.max.x - modelMesh.geometry.boundingBox.min.x;
+
+        const hg = modelMesh.geometry.boundingBox.max.y - modelMesh.geometry.boundingBox.min.y;
+
+        const max_y = modelMesh.geometry.boundingBox.max.y;
 
         this.localPlane.constant = max_y;
 
@@ -636,14 +470,45 @@ export class App extends Component<Store,AppState>{
             ]
         });
 
-        //const object = this.scene.children.find(mesh => mesh.userData.brain) as Mesh;
+        const objects = this.scene.children.filter(mesh => mesh.userData.brain);
 
-        //removeObject(this.scene, object);
+        objects.forEach((object:any) => {
 
-        this.scene.add(mesh);
-        this.scene.add(mesh2);
+            object.geometry.dispose();
+
+            this.scene.remove(object);
+
+            object = undefined;
+
+        });
+
+        this.scene.add(modelMesh);
+
+        this.scene.add(perfusionMesh);
 
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

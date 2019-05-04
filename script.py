@@ -5,6 +5,7 @@ import os
 import vtk
 import json
 import textwrap
+import uuid 
 
 
 
@@ -126,10 +127,10 @@ def brain_to_stdout(file, smooth, threshold, shouldThreshold, reductionFactor):
     else:      
         sm = smooth_mesh(dmc, smooth)   
 
-    outfile = os.path.join(os.getcwd(), "temp123321.stl")
+    outfile = os.path.join(os.getcwd(), ''.join([str(uuid.uuid4()), ".stl"]) ) 
 
     stl(sm,outfile)
-    #sys.exit(0)
+
     try:
         with open(outfile, 'r') as content:
             data = content.read()

@@ -60,7 +60,7 @@ const executeScriptCompiled = (filename, options) => {
 
 
 
-const executeScript = (filename, options) => {
+const executeScript = (filename:string, options) => {
 
     const scriptPath = "./script.py";
 
@@ -75,7 +75,9 @@ const executeScript = (filename, options) => {
         py.stdout.on(
             'data',
             data => {
+
                 result += data.toString('utf8');
+                
             }
         ); 
 
@@ -110,14 +112,19 @@ const executeScript = (filename, options) => {
 const listeners = [
     {
         name:"read:nifti",
-        callback:(event,filename:string, options) => {
+        callback:(event, modelPath, perfusionPath, options) => {
             
-            executeScript(filename, options)
-            .then((result:string) => {
+            Promise.all([
+                executeScript(modelPath, options),
+                executeScript(perfusionPath, options)
+            ])
+            
+            .then(result=> {
                     
                 win.webContents.send("read:nifti", result);
 
             }) 
+
             .catch(error => {
 
                 win.webContents.send("read:nifti", error);
@@ -136,14 +143,20 @@ const listeners = [
     },
     {
         name:"read:nifti:compiled",
-        callback:(event,filename:string,id:string, options) => {
+        callback:(event, modelPath, perfusionPath, options) => {
             
-            executeScriptCompiled(filename, options)
-            .then((result:string) => {
+
+            Promise.all([
+                executeScriptCompiled(modelPath, options),
+                executeScriptCompiled(perfusionPath, options)
+            ])
+
+            .then(result => {
                     
                 win.webContents.send("read:nifti:compiled", result);
 
             }) 
+
             .catch(error => {
 
                 win.webContents.send("read:nifti:compiled", error);
