@@ -1,6 +1,5 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import { initListeners } from './listeners';
-import { isDev } from './app/utils/isDev';
 const fs = require("fs-extra");
 const path = require('path');
 const locked = app.requestSingleInstanceLock(); //TODO remove lock to allow multiple windows simultaneously

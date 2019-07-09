@@ -47,20 +47,6 @@ export const projectMask = (coloration:THREE.BufferGeometry, indices) => (mesh:T
 
             if(first.distance>1){ return; }
 
-            /*
-            mesh.geometry['attributes'].indices.array[first.face.a*3] = indices[face.a*3];
-            mesh.geometry['attributes'].indices.array[first.face.a*3+1] = indices[face.a*3+1];
-            mesh.geometry['attributes'].indices.array[first.face.a*3+2] = indices[face.a*3+2];
-    
-            mesh.geometry['attributes'].indices.array[first.face.b*3] = indices[face.b*3];
-            mesh.geometry['attributes'].indices.array[first.face.b*3+1] = indices[face.b*3+1];
-            mesh.geometry['attributes'].indices.array[first.face.b*3+2] = indices[face.b*3+2];
-    
-            mesh.geometry['attributes'].indices.array[first.face.c*3] = indices[face.c*3];
-            mesh.geometry['attributes'].indices.array[first.face.c*3+1] = indices[face.c*3+1];
-            mesh.geometry['attributes'].indices.array[first.face.c*3+2] = indices[face.c*3+2];
-            */
-            
             mesh.geometry['attributes'].color.array[first.face.a*3] = face.vertexColors[0].r;
             mesh.geometry['attributes'].color.array[first.face.a*3+1] = face.vertexColors[0].g;
             mesh.geometry['attributes'].color.array[first.face.a*3+2] = face.vertexColors[0].b;
@@ -77,8 +63,6 @@ export const projectMask = (coloration:THREE.BufferGeometry, indices) => (mesh:T
 
     });
     
-    console.log("max distance", distance);
-
     mesh.geometry['attributes'].color.needsUpdate = true;  
 
     return mesh;

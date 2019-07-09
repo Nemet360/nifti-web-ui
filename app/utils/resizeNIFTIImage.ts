@@ -2,8 +2,8 @@ const resizeImageData = require('resize-image-data');
 
 
 
-export const resizeNIFTIImage = ( original_dims, target_dims, dataInterface ) => {
-
+export const resizeNIFTIImage = ( original_dims, target_dims, niftiImage ) => {
+    
     const difference_xy = (target_dims.x * target_dims.y - original_dims.x * original_dims.y) * original_dims.z;
 
     const difference_z = (target_dims.z - original_dims.z) * target_dims.x * target_dims.y;
@@ -14,7 +14,7 @@ export const resizeNIFTIImage = ( original_dims, target_dims, dataInterface ) =>
         throw new Error(`Incorrect resize configuration. Interval could not be less than 2`);
     }
 
-    let newLength = dataInterface.length + difference_xy + difference_z;
+    const newLength = niftiImage.length + difference_xy + difference_z;
 
     const dest = new ArrayBuffer(newLength); 
             
@@ -54,7 +54,7 @@ export const resizeNIFTIImage = ( original_dims, target_dims, dataInterface ) =>
 
                 const offset = (z * x_max * y_max) + (y * x_max) + x;
                 
-                const v = dataInterface[offset];
+                const v = niftiImage[offset];
 
                 const image_location = (y * x_max + x) * 4;
 

@@ -9,8 +9,7 @@
     "build:renderer:production": "webpack -w --env production --config webpack.config.js",
     "build:main:production": "webpack -w --env production --config webpack.main.config.js",
     "build:renderer": "webpack -w --env development --config webpack.config.js",
-    "build:main": "webpack -w --env development --config webpack.main.config.js",
-    "compile": "pyinstaller --onefile script.py"
+    "build:main": "webpack -w --env development --config webpack.main.config.js"
   },
   "homepage": "https://google.com",
   "repository": "",

@@ -1,5 +1,4 @@
 import { histogram } from "./histogram";
-import { isNil } from 'ramda';
 
 
 
@@ -51,6 +50,6 @@ export const equalize = values => {
 
 
 
-    return {perfusionColorsEqualized:result,min,max};
+    return { equalized:result, min, max };
 
 }

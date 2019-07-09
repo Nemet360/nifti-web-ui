@@ -1,7 +1,5 @@
 import { Scene, Mesh } from "three";
-import { remote } from 'electron';
 import * as THREE from "three";
-const fs = remote.require('fs');
 
 
 
@@ -13,6 +11,7 @@ export const exportJSON = (scene:Scene, p:string) : void => {
 
     json = JSON.stringify(json);
 
+    /*
     const wstream = fs.createWriteStream(p);
 
     let buf = '';
@@ -38,5 +37,6 @@ export const exportJSON = (scene:Scene, p:string) : void => {
     json = undefined;
 
     wstream.end();
+    */
 
 }

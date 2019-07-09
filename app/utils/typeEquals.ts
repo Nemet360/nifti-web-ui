@@ -1,5 +1,2 @@
-import { Store, action } from "../types";
 
-
-
-export const typeEquals = (type:keyof Store) => (action:action) => action.type===type;
+export const typeEquals = type => action => action.type===type;

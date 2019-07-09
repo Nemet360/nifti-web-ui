@@ -4,9 +4,47 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 
 
-module.exports = env => {
+module.exports = env => [
+  {
 
-  return { 
+    mode : env, 
+
+    context : __dirname + "/app",
+
+    entry : {    
+      'worker' : './worker.ts'
+    },
+
+    output : {            
+      filename : "[name].js" , 
+      path : path.resolve(__dirname,env) 
+    },
+
+    target : 'webworker',
+
+    devtool : 'cheap-module-source-map',
+
+    resolve : { 
+        extensions:[".ts", ".js", ".json"]
+    }, 
+
+    module : {
+      rules : [
+        {  
+          test : /\.(ts|tsx)?$/,  
+          exclude : /(node_modules)/, 
+          loader : "awesome-typescript-loader"
+        },
+        {     
+          test : /\.(js|jsx)$/,
+          loader : "babel-loader",
+          exclude : /node_modules/
+        }
+      ]
+    }
+
+  },
+  { 
 
     entry: {    
       "app":"./app/app.tsx"
@@ -49,9 +87,7 @@ module.exports = env => {
     target:"electron-renderer", //"web"
 
     plugins: [
-      new CopyWebpackPlugin([{ from : "./app/assets" }]),   
-      new CopyWebpackPlugin([{ from : "./dist/script.exe" }]),
-      new CopyWebpackPlugin([{ from : "./script.py" }]),
+      new CopyWebpackPlugin([{ from : "./app/assets" }]),
       new HtmlWebpackPlugin({
           inject:true, 
           title:"NIFTI Viewer",     
@@ -67,4 +103,4 @@ module.exports = env => {
 
   }
 
-}
+]

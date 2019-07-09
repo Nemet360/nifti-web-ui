@@ -1,20 +1,27 @@
 import caseTable from './caseTable';
 import { normalize } from './utils/normalize';
+import { mode } from './utils/mode';
+import { compose, ifElse, isEmpty, reject, equals } from 'ramda';
+import { isNotNil } from './utils/isNotNil';
+import { isNotEmpty } from './utils/isNotEmpty';
 
 
 
 type input = { 
   dims:{ x:number, y:number, z:number }, 
-  scalars:number[]
+  maskDims:{ x:number, y:number, z:number }, 
+  scalars:number[],
+  datatypeCode:number,
+  mask:number[]
 };
 
 
 
 type output = { 
-  perfusionNormals:any[], 
-  perfusionPoints:any[], 
-  perfusionColors:any[]
-  indices_p:number[]
+  normals:any[], 
+  points:any[], 
+  colors:any[],
+  types:any[]
 };
 
 
@@ -25,7 +32,7 @@ type requestData = (input:input) => output;
 
 const model = {
   computeNormals:true, 
-  mergePoints:true, 
+  mergePoints:false, 
   contourValue:1
 };
 
@@ -45,7 +52,6 @@ export const marchingCubes = () : requestData => {
   let voxelScalars = [];
   let voxelGradients = [];
   let voxelPts = [];
-  let edgeMap = new Map();
 
 
 
@@ -88,7 +94,9 @@ export const marchingCubes = () : requestData => {
 
 
   const getPointGradient = (i, j, k, dims, slice, spacing, s, g) => {
+
     let sp;
+
     let sm;
 
 
@@ -138,6 +146,7 @@ export const marchingCubes = () : requestData => {
       sm = s[i + j * dims[0] + (k - 1) * slice];
       g[2] = (0.5 * (sm - sp)) / spacing[2];
     }
+
   };
 
 
@@ -164,16 +173,7 @@ export const marchingCubes = () : requestData => {
     voxelGradients[7] = g[1];
     voxelGradients[8] = g[2];
 
-    getPointGradient(
-      i + 1,
-      j + 1,
-      k,
-      dims,
-      slice,
-      spacing,
-      scalars,
-      g
-    );
+    getPointGradient(i + 1, j + 1, k, dims, slice, spacing, scalars, g);
 
     voxelGradients[9] = g[0];
     voxelGradients[10] = g[1];
@@ -185,50 +185,24 @@ export const marchingCubes = () : requestData => {
     voxelGradients[13] = g[1];
     voxelGradients[14] = g[2];
 
-    getPointGradient(
-      i + 1,
-      j,
-      k + 1,
-      dims,
-      slice,
-      spacing,
-      scalars,
-      g
-    );
+    getPointGradient(i + 1, j, k + 1, dims, slice, spacing, scalars, g);
 
     voxelGradients[15] = g[0];
     voxelGradients[16] = g[1];
     voxelGradients[17] = g[2];
 
-    getPointGradient(
-      i,
-      j + 1,
-      k + 1,
-      dims,
-      slice,
-      spacing,
-      scalars,
-      g
-    );
+    getPointGradient(i, j + 1, k + 1, dims, slice, spacing, scalars, g);
 
     voxelGradients[18] = g[0];
     voxelGradients[19] = g[1];
     voxelGradients[20] = g[2];
 
-    getPointGradient(
-      i + 1,
-      j + 1,
-      k + 1,
-      dims,
-      slice,
-      spacing,
-      scalars,
-      g
-    );
+    getPointGradient(i + 1, j + 1, k + 1, dims, slice, spacing, scalars, g);
 
     voxelGradients[21] = g[0];
     voxelGradients[22] = g[1];
     voxelGradients[23] = g[2];
+
   };
 
 
@@ -243,19 +217,17 @@ export const marchingCubes = () : requestData => {
     origin,
     spacing,
     scalars,
-    points,
-    normals,
-    colors,
-    indices
+    mask
   }) => {
-
+    const points = [];
+    const normals = [];
+    const colors = [];
+    const types = [];
+    const maskScalars = [];
     const xyz = [];
     const n = [];
-    const edge = [];
-    let pId;
-    let tmp;
 
-
+    let type = null;
 
     ids[0] = k * slice + j * dims[0] + i;
     ids[1] = ids[0] + 1;
@@ -266,45 +238,41 @@ export const marchingCubes = () : requestData => {
     ids[6] = ids[4] + dims[0];
     ids[7] = ids[6] + 1;
     
-    
-    
     for (let ii = 0; ii < 8; ++ii) { voxelScalars[ii] = scalars[ids[ii]]; }
 
+    if(isNotNil(mask)){
 
+      for (let ii = 0; ii < 8; ++ii) { maskScalars[ii] = mask[ids[ii]]; }
+
+      type = compose(   
+
+        ifElse( isEmpty, () => 0, mode ),
+
+        reject( equals(0) ) 
+
+      )(maskScalars)
+
+    }
 
     let index = 0;
 
     for (let idx = 0; idx < 8; idx++) {
 
-      if (voxelScalars[VERT_MAP[idx]] >= cVal) {
+        if (voxelScalars[VERT_MAP[idx]] >= cVal) {
 
-        index |= CASE_MASK[idx];
+          index |= CASE_MASK[idx];
 
-      }
+        }
 
     }
-
-
 
     const voxelTris = caseTable.getCase(index);
 
-
-
     if (voxelTris[0] < 0) { return; }
-
-
 
     getVoxelPoints(i, j, k, dims, origin, spacing);
 
-  
-
-    if (model.computeNormals) {
-
-      getVoxelGradients(i, j, k, dims, slice, spacing, scalars);
-
-    }
-
-    
+    getVoxelGradients(i, j, k, dims, slice, spacing, scalars);
 
     for (let idx = 0; voxelTris[idx] >= 0; idx += 3) {
      
@@ -312,79 +280,54 @@ export const marchingCubes = () : requestData => {
 
         const edgeVerts = caseTable.getEdge(voxelTris[idx + eid]);
 
-        pId = undefined;
+        const t = ( cVal - voxelScalars[ edgeVerts[0] ] ) / ( voxelScalars[ edgeVerts[1] ] - voxelScalars[ edgeVerts[0] ] );
 
-        if (model.mergePoints) {
+        const x0 = voxelPts.slice(edgeVerts[0] * 3, (edgeVerts[0] + 1) * 3);
 
-          edge[0] = ids[edgeVerts[0]];
-          edge[1] = ids[edgeVerts[1]];
-          if (edge[0] > edge[1]) {
-            tmp = edge[0];
-            edge[0] = edge[1];
-            edge[1] = tmp;
-          }
-          pId = edgeMap.get(edge);
+        const x1 = voxelPts.slice(edgeVerts[1] * 3, (edgeVerts[1] + 1) * 3);
 
-        }
+        xyz[0] = x0[0] + t * (x1[0] - x0[0]);
 
-        if (pId === undefined) {
+        xyz[1] = x0[1] + t * (x1[1] - x0[1]);
 
-          const t = (cVal - voxelScalars[edgeVerts[0]]) / (voxelScalars[edgeVerts[1]] - voxelScalars[edgeVerts[0]]);
-          const x0 = voxelPts.slice(edgeVerts[0] * 3, (edgeVerts[0] + 1) * 3);
-          const x1 = voxelPts.slice(edgeVerts[1] * 3, (edgeVerts[1] + 1) * 3);
+        xyz[2] = x0[2] + t * (x1[2] - x0[2]);
 
-          xyz[0] = x0[0] + t * (x1[0] - x0[0]);
-          xyz[1] = x0[1] + t * (x1[1] - x0[1]);
-          xyz[2] = x0[2] + t * (x1[2] - x0[2]);
+        const n0 = voxelGradients.slice( edgeVerts[0] * 3, (edgeVerts[0] + 1) * 3 );
+        const n1 = voxelGradients.slice( edgeVerts[1] * 3, (edgeVerts[1] + 1) * 3 );
 
-          pId = points.length / 3;
+        n[0] = n0[0] + t * (n1[0] - n0[0]);
+        n[1] = n0[1] + t * (n1[1] - n0[1]);
+        n[2] = n0[2] + t * (n1[2] - n0[2]);
 
-          points.push(xyz[0], xyz[1], xyz[2]);
+        normalize(n);
 
-          if(colors){ 
-            
-            colors.push(
-              ( 
-                voxelScalars[0]+
-                voxelScalars[1]+ 
-                voxelScalars[2]+
-                voxelScalars[3]+
-                voxelScalars[4]+ 
-                voxelScalars[5]+
-                voxelScalars[6]+
-                voxelScalars[7]
-              )/8
-            ); 
-          
-          }
+        if(
+          n[0]===0 && n[1]===0 && n[2]===0
+        ){
 
-          if(indices){ indices.push(i,j,k); }
+          normals.push(0.5, 0.5, 0.5);
 
-          if (model.computeNormals) {
-            const n0 = voxelGradients.slice( edgeVerts[0] * 3, (edgeVerts[0] + 1) * 3 );
-            const n1 = voxelGradients.slice( edgeVerts[1] * 3, (edgeVerts[1] + 1) * 3 );
-            n[0] = n0[0] + t * (n1[0] - n0[0]);
-            n[1] = n0[1] + t * (n1[1] - n0[1]);
-            n[2] = n0[2] + t * (n1[2] - n0[2]);
-            normalize(n);
-            normals.push(n[0], n[1], n[2]);
-          }
+        }else{
 
-          if (model.mergePoints) {
-            edge[0] = ids[edgeVerts[0]];
-            edge[1] = ids[edgeVerts[1]];
-            if (edge[0] > edge[1]) {
-              tmp = edge[0];
-              edge[0] = edge[1];
-              edge[1] = tmp; 
-            }
-            edgeMap[edge as any] = pId;
-          }
+          normals.push(n[0], n[1], n[2]);
 
         }
+
+        points.push(xyz[0], xyz[1], xyz[2])
+
+        colors.push( (voxelScalars[edgeVerts[1]] + voxelScalars[edgeVerts[0]]) / 2 );
+      
+        if(isNotNil(type)){ types.push(type) }
 
       }
 
+    }
+
+    return {
+      p:points,
+      n:normals,
+      c:colors,
+      t:isEmpty(types) ? null : types
     }
 
   };
@@ -393,35 +336,43 @@ export const marchingCubes = () : requestData => {
 
   return input => {
 
-    const { dims, scalars } = input;
-    
+    const { dims, scalars, datatypeCode, mask } = input;
+
+    model.contourValue = datatypeCode===4 ? 180 : 1;
+
+    const color = datatypeCode===16;  
+
     const { x,y,z } = dims;
 
-    const perfusionPoints = [];
+    const points = [];
 
-    const perfusionNormals = [];
+    const normals = [];
 
-    const colors = [];
+    const colors = color ? [] : null;
 
-
+    const types = isNotNil(mask) ? [] : null;
 
     const slice = x * y;
 
-    const spacing = [1,1,1]; //[1.5, 1.5, 1.5]
+    const spacing = [ 1, 1, 1 ];
 
-    const origin = [0,0,0];
+    const origin = [ 0, 0, 0 ];
 
-    const indices_p = [];
+    const avg = c => {
 
+      const sum = c.reduce((a,v) => a+v, 0);
 
+      return c.map(v => sum/c.length);
+
+    };
 
     for (let k = 0; k < z - 1; ++k) {
-
+      
       for (let j = 0; j < y - 1; ++j) {
 
         for (let i = 0; i < x - 1; ++i) {
-
-          produceTriangles({
+          
+          const result = produceTriangles({
             cVal:model.contourValue,
             i,
             j,
@@ -431,11 +382,32 @@ export const marchingCubes = () : requestData => {
             origin,
             spacing,
             scalars,
-            points:perfusionPoints,
-            normals:perfusionNormals,
-            colors,
-            indices:indices_p
+            mask
           });
+
+          if(result && result.p.length > 0){
+
+            const { p, n, c, t } = result;
+
+            points.push(...p);
+
+            normals.push(...n);
+
+            if(colors){
+
+              colors.push(...avg(c));
+
+            }
+
+            if(
+              isNotNil(types) && isNotEmpty(t)
+            ){
+
+              types.push(...t);
+
+            }
+
+          }
 
         }
 
@@ -444,10 +416,10 @@ export const marchingCubes = () : requestData => {
     }
 
     return { 
-      perfusionColors : colors, 
-      perfusionPoints, 
-      perfusionNormals, 
-      indices_p 
+      colors, 
+      points, 
+      normals,
+      types
     } as output
 
   }
