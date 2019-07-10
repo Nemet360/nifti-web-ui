@@ -2,8 +2,9 @@ import { app, BrowserWindow, Menu } from 'electron';
 import { initListeners } from './listeners';
 const fs = require("fs-extra");
 const path = require('path');
-const locked = app.requestSingleInstanceLock(); //TODO remove lock to allow multiple windows simultaneously
+const locked = app.requestSingleInstanceLock();
 
+process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
 
 
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096');

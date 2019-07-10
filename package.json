@@ -83,7 +83,7 @@
     "asarUnpack": [],
     "extraFiles": [],
     "files": [
-      "production/**/*"
+      "development/**/*"
     ],
     "win": {
       "target": "nsis",

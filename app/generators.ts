@@ -10,8 +10,6 @@ export const generators = {
 
     "16" : attributes => {
 
-        console.log("16", attributes);
-
         const geometry = attributesToGeometry(attributes);
 
         geometry.scale(0.95, 0.95, 0.95);
@@ -24,13 +22,12 @@ export const generators = {
                 side : THREE.FrontSide,
                 vertexColors : THREE.VertexColors,
                 transparent : false,
-                
+                depthWrite : true,
                 metalness : 0.0,
                 roughness : 0.0,
                 clearCoat : 1.0,
                 clearCoatRoughness : 1.0,
-                reflectivity : 1.0,
-                
+                reflectivity : 0.5,
                 opacity : 1
             } ),
 
@@ -39,14 +36,12 @@ export const generators = {
                 vertexColors : THREE.VertexColors,
                 transparent : true, 
                 depthWrite : false,
-                
                 metalness : 0.0,
                 roughness : 0.0,
                 clearCoat : 1.0,
                 clearCoatRoughness : 1.0,
-                reflectivity : 1.0,
-                
-                opacity : 0.05
+                reflectivity : 0.5,
+                opacity : 0.1
             } )
 
         ];
@@ -57,13 +52,12 @@ export const generators = {
                 side : THREE.BackSide,
                 vertexColors : THREE.VertexColors,
                 transparent : false,
-                
+                depthWrite : false,
                 metalness : 0.0,
                 roughness : 0.0,
                 clearCoat : 1.0,
                 clearCoatRoughness : 1.0,
-                reflectivity : 1.0,
-                
+                reflectivity : 0.5,
                 opacity : 1
             } ),
 
@@ -72,14 +66,12 @@ export const generators = {
                 vertexColors : THREE.VertexColors,
                 transparent : true, 
                 depthWrite : false,
-                
                 metalness : 0.0,
                 roughness : 0.0,
                 clearCoat : 1.0,
                 clearCoatRoughness : 1.0,
-                reflectivity : 1.0,
-                
-                opacity : 0.05
+                reflectivity : 0.5,
+                opacity : 0.1
             } )
             
         ];
@@ -95,6 +87,10 @@ export const generators = {
         m1.renderOrder = 1;
 
         m2.renderOrder = 1;
+
+        m1.userData.perfusion = true;
+
+        m2.userData.perfusion = true;
 
         const group = new THREE.Group();
         
@@ -118,8 +114,6 @@ export const generators = {
 
     "2" : attributes => {
 
-        console.log("2", attributes);
-
         const geometry = attributesToGeometry(attributes);
 
         geometry.center();
@@ -132,12 +126,13 @@ export const generators = {
             clearCoat : 1.0,
             clearCoatRoughness : 1.0,
             reflectivity : 1.0,
-            transparent : false,
+            transparent : true,
             opacity : 1,
             clipShadows : true,
             depthWrite : false
         });
 
+        
         const material2 = new MeshPhysicalMaterial({
             side : THREE.BackSide,
             vertexColors : THREE.VertexColors,
@@ -151,32 +146,33 @@ export const generators = {
             clipShadows : true,
             depthWrite : false
         });
+        
 
         const m1 = new THREE.Mesh(geometry, material1);
 
-        //const m2 = new THREE.Mesh(geometry, material2);
+        const m2 = new THREE.Mesh(geometry, material2);
 
         m1.onBeforeRender = function( renderer ) { renderer.clearDepth(); };
 
-        //m2.onBeforeRender = function( renderer ) { renderer.clearDepth(); };
+        m2.onBeforeRender = function( renderer ) { renderer.clearDepth(); };
 
-        m1.renderOrder = 2;
+        m1.renderOrder = 3;
 
-        //m2.renderOrder = 2;
+        m2.renderOrder = 3;
 
         m1.userData.transparent = true;
 
-        //m2.userData.transparent = true;
+        m2.userData.transparent = true;
 
         m1.userData.dataType = "2";
 
-        //m2.userData.dataType = "2";
+        m2.userData.dataType = "2";
 
         const group = new THREE.Group();
         
         group.add(m1);
 
-        //group.add(m2);
+        group.add(m2);
 
         group.userData.brain = true;
 
@@ -187,8 +183,6 @@ export const generators = {
     },
 
     "4" : attributes => {
-
-        console.log("4", attributes);
 
         const geometry = attributesToGeometry(attributes);
 
@@ -223,44 +217,48 @@ export const generators = {
             clipShadows : true,
             depthWrite : false
         });
-
+        
         const m1 = new THREE.Mesh(geometry, material1);
 
-        //const m2 = new THREE.Mesh(geometry, material2);
+        const m2 = new THREE.Mesh(geometry, material2);
 
         m1.onBeforeRender = function( renderer ) { renderer.clearDepth(); };
 
-        //m2.onBeforeRender = function( renderer ) { renderer.clearDepth(); };
+        m2.onBeforeRender = function( renderer ) { renderer.clearDepth(); };
 
-        m1.renderOrder = 3;
+        m1.renderOrder = 5;
 
-        //m2.renderOrder = 3;
+        m2.renderOrder = 4;
 
         m1.userData.transparent = true;
 
-        //m2.userData.transparent = true;
+        m2.userData.transparent = true;
 
         m1.userData.dataType = "4";
 
-        //m2.userData.dataType = "4";
+        m2.userData.dataType = "4";
 
         m1.rotation.x = 2 * Math.PI;
 
         m1.rotation.y = 2 * Math.PI;
 
-        //m2.rotation.x = 2 * Math.PI;
+        m2.rotation.x = 2 * Math.PI;
 
-        //m2.rotation.y = 2 * Math.PI;
+        m2.rotation.y = 2 * Math.PI;
 
         const group = new THREE.Group();
         
         group.add(m1);
         
-        //group.add(m2);
+        group.add(m2);
 
         group.userData.brain = true;
 
         group.userData.dataType = "4";
+
+        m1.userData.face = true;
+
+        m2.userData.face = true;
 
         return group;
 

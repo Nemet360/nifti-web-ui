@@ -17,7 +17,7 @@ import { regions } from './utils/regions';
 
 
 const transparencyEquations = {
-    "2" : x => 1 - Math.pow( Math.E, - 8 * Math.pow(x, 4) ), 
+    "2" : x => 1 - Math.pow( Math.E, - 8 * Math.pow(x, 5) ), 
     "4" : x => 1 - Math.pow( Math.E, - 3 * Math.pow(x, 4) )
 };
 
