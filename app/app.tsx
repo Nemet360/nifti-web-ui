@@ -20,7 +20,15 @@ THREE.BufferGeometry.prototype['computeBoundsTree'] = computeBoundsTree;
 THREE.BufferGeometry.prototype['disposeBoundsTree'] = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
+/*
+1. user pick a 'load menu' 
+2. dialog opens - user select 4 nifty files
+3. a viewport is being added with the current selection
 
+4. when doing the same cycle again - another viewport is being added etc etc
+
+what do you think about that ?
+*/
 
 window['THREE'] = THREE;
 
