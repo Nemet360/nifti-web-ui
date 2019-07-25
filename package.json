@@ -1,7 +1,7 @@
 {
   "name": "nifti",
   "productName": "NIFTIViewer",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "",
   "main": "development/main.js",
   "scripts": {
