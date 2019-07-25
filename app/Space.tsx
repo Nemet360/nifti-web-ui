@@ -1,18 +1,19 @@
 import * as React from 'react';
+import * as THREE from "three";
+import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Box3 } from 'three';
 import { Component } from "react"; 
 import { Subscription } from 'rxjs';
-import { fromEvent } from 'rxjs/observable/fromEvent'; 
-import * as THREE from "three";
-import { Vector3, WebGLRenderer, PerspectiveCamera, Scene, Light, Mesh, Box3 } from 'three';
+import { fromEvent } from 'rxjs/observable/fromEvent';
 import { lights } from './utils/lights';
 import { OrbitControls } from './OrbitControls';
 import { isNil } from 'ramda';
 import { getObjectCenter } from './utils/getObjectCenter';
+import { regions } from './utils/regions';
 import InputLabel from '@material-ui/core/InputLabel';
 import FormControl from '@material-ui/core/FormControl';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
-import { regions } from './utils/regions';
+import ResizeObserver from 'resize-observer-polyfill';
 
 
 
@@ -48,6 +49,8 @@ export class Space extends Component<SpaceProps,SpaceState>{
     renderer:WebGLRenderer
     controls:any
     subscriptions:Subscription[]
+    ro:any 
+    ref:any
 
 
 
@@ -101,6 +104,30 @@ export class Space extends Component<SpaceProps,SpaceState>{
 
 
 
+    initRo = () => {  
+
+        this.ro = new ResizeObserver(this.onRO);  
+
+        this.ro.observe(this.ref);   
+
+    }
+ 
+
+
+    suspendRo = () => {  
+
+        this.ro.disconnect();
+
+        this.ro = undefined;
+
+    }
+
+
+
+    onRO = entries => this.onResize(null);
+
+    
+
     componentWillReceiveProps(next:SpaceProps){
 
         if(next.camera!==this.props.camera){
@@ -117,7 +144,9 @@ export class Space extends Component<SpaceProps,SpaceState>{
 
     componentDidMount(){
 
-        if(isNil(this.container)){ return }    
+        if(isNil(this.container)){ return } 
+
+        this.initRo();
 
         this.subscriptions.push(
 
@@ -136,6 +165,8 @@ export class Space extends Component<SpaceProps,SpaceState>{
 
 
     componentWillUnmount(){
+
+        this.suspendRo();
 
         this.subscriptions.forEach(subscription => subscription.unsubscribe());
 
@@ -330,8 +361,6 @@ export class Space extends Component<SpaceProps,SpaceState>{
 
     onChangeRegion = event => {
 
-        console.log(event.target.value);
-
         const group = this.props.group.children.find(m => m.userData.perfusion);
 
         if( ! group ){ return }
@@ -366,12 +395,15 @@ export class Space extends Component<SpaceProps,SpaceState>{
 
         return isNil(this.props.group) ? null :
         
-        <div style={{ 
-            width : "100%", 
-            height : "100%", 
-            position : "relative", 
-            overflow : "hidden"
-        }}>   
+        <div 
+            ref={e => { this.ref = e }}
+            style={{ 
+                width : "100%", 
+                height : "100%", 
+                position : "relative", 
+                overflow : "hidden"
+            }}
+        >   
             <div style={{
                 position: "absolute",
                 zIndex: 22,

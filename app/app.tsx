@@ -346,12 +346,12 @@ export class App extends Component<AppProps,AppState>{
                 alignItems:'center',
                 justifyItems:'center',
                 gridGap:"10px",
-                gridTemplateColumns:`repeat(${models.length}, [col-start] 1fr)`
+                gridTemplateColumns:`repeat(${models.length > 1 ? 2 : 1}, [col-start] 1fr)`
             }}> 
             {
                 models.map( (group,index) => 
 
-                    <div key={`group-${index}`} style={{width:"100%", height:"100%"}}>  
+                    <div key={`group-${group.uuid}`} style={{width:"100%", height:"100%"}}>  
 
                         <div style={{
                             height:"100%",
