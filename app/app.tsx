@@ -17,8 +17,7 @@ import { isNotEmpty } from '../cli/utils/isNotEmpty';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Button from '@material-ui/core/Button';
-import { readNIFTIFile } from '../cli/utils/readNIFTIFile';
-import { imageToTypedData } from '../cli/utils/imageToTypedData';
+const fs = require('fs');
 
 THREE.BufferGeometry.prototype['computeBoundsTree'] = computeBoundsTree;
 THREE.BufferGeometry.prototype['disposeBoundsTree'] = disposeBoundsTree;
@@ -75,6 +74,8 @@ export class App extends Component<AppProps,AppState>{
         this.subscriptions = [];
 
         this.workers = [];
+
+        window.loadFile = this.loadAjax.bind(this);
 
         this.state = {
             loading : false,
@@ -210,9 +211,15 @@ export class App extends Component<AppProps,AppState>{
 
     }
 
-
-
-
+    loadAjax = async (filePath) => {
+        this.setState({ error: "" });
+        try {
+            const data = fs.readFileSync(filePath);
+            this.buildMeshes(JSON.parse(data));
+        } catch(e) {
+            this.setState({ error: "Invalid json file!"});
+        }
+    }
 
 
     onLoad = event => {

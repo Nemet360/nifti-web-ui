@@ -2,13 +2,15 @@ import { readNIFTIFile } from './utils/readNIFTIFile';
 import { all, reject, isEmpty } from 'ramda';
 import { transform } from './utils/transform';
 import * as fs from 'fs';
-const readlineSync = require('readline-sync');
 
-const files = process.argv.slice(2);//["./samples/brain.nii", "./samples/face.nii", "./samples/perfusion.nii", "./samples/wBRODMANN_SubCort_WM.nii"];
+const files = process.argv.slice(2);
 
+if(files.length !== 5) {
+  console.log("You should put 5 files!");
+  process.exit(0);
+}
 
-// Wait for user's response.
-const outputFile = readlineSync.question('Enter output file: ');
+const outputFile = files.pop();
 
 const atlas = v => v.name==="wBRODMANN_SubCort_WM.nii";
 
