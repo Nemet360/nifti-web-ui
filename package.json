@@ -3,12 +3,16 @@
   "productName": "NIFTIViewer",
   "version": "0.0.4",
   "description": "",
+  "bin": {
+    "build-json": "development/cli.js"
+  },
   "main": "development/main.js",
   "scripts": {
     "start": "node_modules/.bin/electron .",
-    "build:renderer:production": "webpack -w --env production --config webpack.config.js",
-    "build:main:production": "webpack -w --env production --config webpack.main.config.js",
-    "build:renderer": "webpack -w --env development --config webpack.config.js",
+    "build": "npm run build:main:production; npm run build:cli:production",
+    "build:main:production": "webpack --env development --config webpack.main.config.js",
+    "build:cli:production": "webpack --env development --config webpack.cli.config.js; pkg ./development/cli.js --target=node10-win -o cli.exe ",
+    "build:cli": "webpack -w --env development --config webpack.cli.config.js",
     "build:main": "webpack -w --env development --config webpack.main.config.js"
   },
   "homepage": "https://google.com",
@@ -27,7 +31,7 @@
     "@types/mocha": "^2.2.41",
     "@types/node": "^7.0.39",
     "@types/react-transition-group": "^2.0.16",
-    "@types/three": "^0.93.27",
+    "@types/three": "^0.103.2",
     "awesome-typescript-loader": "5.0.0",
     "babel-core": "^6.25.0",
     "babel-loader": "^7.1.1",
@@ -59,7 +63,7 @@
     "rxjs": "^5.4.2",
     "source-map-loader": "^0.2.1",
     "style-loader": "0.21.0",
-    "three": "0.103.0",
+    "three": "^0.108.0",
     "three-mesh-bvh": "^0.1.2",
     "ts-loader": "4.2.0",
     "tween.js": "^16.6.0",
@@ -72,7 +76,12 @@
     "webpack-cli": "^3.0.8",
     "webpack-dev-server": "^3.2.1"
   },
-  "dependencies": {},
+  "dependencies": {
+    "pkg": "^4.4.0",
+    "readline": "^1.3.0",
+    "readline-sync": "^1.4.10",
+    "serialize-json": "^1.0.3"
+  },
   "build": {
     "appId": "com.nifti.viewer",
     "directories": {

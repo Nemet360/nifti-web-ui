@@ -1,25 +1,24 @@
-import './assets/fonts/index.css'; 
-import './assets/styles.css'; 
+import './assets/fonts/index.css';
+import './assets/styles.css';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import * as THREE from "three";
-import { isEmpty, identity, reject, all } from 'ramda';
-import { Component } from "react"; 
+import { identity } from 'ramda';
+import { Component } from "react";
 import { Subscription } from 'rxjs';
 import { fromEvent } from 'rxjs/observable/fromEvent';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
-import { workerSend } from './utils/workerSend';
-import { transform } from './utils/transform';
 import { Space } from './Space';
 import { filter } from 'rxjs/operators';
 import { generators } from './generators';
 import { ipcRenderer } from 'electron';
-import { isNotEmpty } from './utils/isNotEmpty';
+import { isNotEmpty } from '../cli/utils/isNotEmpty';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Button from '@material-ui/core/Button';
-import { readNIFTIFile } from './utils/readNIFTIFile';
+import { readNIFTIFile } from '../cli/utils/readNIFTIFile';
+import { imageToTypedData } from '../cli/utils/imageToTypedData';
 
 THREE.BufferGeometry.prototype['computeBoundsTree'] = computeBoundsTree;
 THREE.BufferGeometry.prototype['disposeBoundsTree'] = disposeBoundsTree;
@@ -32,7 +31,7 @@ require('three/examples/js/math/Lut');
 
 
 /*
-1. user pick a 'load menu' 
+1. user pick a 'load menu'
 2. dialog opens - user select 4 nifty files
 3. a viewport is being added with the current selection
 4. when doing the same cycle again - another viewport is being added etc etc
@@ -40,8 +39,7 @@ require('three/examples/js/math/Lut');
 
 
 
-const atlas = v => v.name==="wBRODMANN_SubCort_WM.nii";
-            
+
 
 
 interface AppProps{}
@@ -57,6 +55,12 @@ interface AppState{
 
 
 
+const makeSlice = (file, start, length) => {
+
+    return file.slice(start, start + length);
+
+}
+
 export class App extends Component<AppProps,AppState>{
     container:HTMLElement
     subscriptions:Subscription[]
@@ -64,7 +68,7 @@ export class App extends Component<AppProps,AppState>{
     input:any
 
 
-    constructor(props){ 
+    constructor(props){
 
         super(props);
 
@@ -72,16 +76,16 @@ export class App extends Component<AppProps,AppState>{
 
         this.workers = [];
 
-        this.state = { 
+        this.state = {
             loading : false,
             models : [],
             error : "",
-            camera : new PerspectiveCamera(50, 1, 1, 2000) 
+            camera : new PerspectiveCamera(50, 1, 1, 2000)
         };
 
-    } 
+    }
 
-    
+
 
     componentDidMount(){
 
@@ -101,7 +105,7 @@ export class App extends Component<AppProps,AppState>{
 
     sagittal = () => {
 
-        const c = this.state.camera; 
+        const c = this.state.camera;
 
         c.position.x = 200;
         c.position.y = 0;
@@ -117,8 +121,8 @@ export class App extends Component<AppProps,AppState>{
 
     axial = () => {
 
-        const c = this.state.camera; 
-        
+        const c = this.state.camera;
+
         c.position.x = 0;
         c.position.y = 0;
         c.position.z = 200;
@@ -134,7 +138,7 @@ export class App extends Component<AppProps,AppState>{
     coronal = () => {
 
         const c = this.state.camera;
-        
+
         c.position.x = 0;
         c.position.y = 200;
         c.position.z = 20;
@@ -160,67 +164,42 @@ export class App extends Component<AppProps,AppState>{
     }
 
 
+    buildMeshes = (collection) => {
 
-    generateMeshes = (data, atlas) => {
+        const meshes = collection.map((attributes: any) => {
 
-        if(isEmpty(data)){ return }
+            const dc = attributes.niftiHeader.datatypeCode.toString();
 
-        const first = data[0];
+            const generator = generators[dc];
 
-        const remainder = data.slice(1, data.length);
+            if (!generator) {
+                return null
+            }
 
-        const workers = this.workers.map(workerSend).map(( f, i ) => f({ file: remainder[i], atlas }));
+            return generator(attributes);
 
-        
+        });
 
-        return Promise.all([ 
+        const models = meshes.filter(identity);
 
-            transform({file:first, atlas}), 
 
-            ...workers
+        const perfusions = models.filter(m => m.userData.dataType === '16');
 
-        ])
+        const remainder = models.filter(m => m.userData.dataType !== '16');
 
-        .then(collection => {
+        const next = perfusions.map(m => {
 
-            const meshes = collection.map( (attributes:any) => {
+            const group = new THREE.Group();
 
-                const dc = attributes.niftiHeader.datatypeCode.toString();
+            group.add(m.clone());
 
-                const generator = generators[dc];
-          
-                if( ! generator ){ return null }
+            remainder.forEach(m => group.add(m.clone()));
 
-                return generator(attributes);
+            return group;
 
-            } );
-           
-            return meshes.filter(identity);
+        });
 
-        })
-
-        .then((models:any[]) => {
-
-            const perfusions = models.filter(m => m.userData.dataType === '16');
-
-            const remainder = models.filter(m => m.userData.dataType !== '16');
-
-            const next = perfusions.map(m => {
-    
-                const group = new THREE.Group();
-
-                group.add( m.clone() );
-                
-                remainder.forEach( m => group.add( m.clone() ) );
-
-                return group;
-
-            });
-
-            this.setState({ models : [...this.state.models, ...next], loading : false });
-
-        })
-
+        this.setState({ models : [...this.state.models, ...next], loading : false });
     }
 
 
@@ -233,37 +212,6 @@ export class App extends Component<AppProps,AppState>{
 
 
 
-    valid = list => {
-        
-        const isNii = entry => entry.name.indexOf(".nii")!==-1;
-
-        return Promise.resolve(false)
-
-        .then(
-            valid => {
-
-                if( list.length!==4 || ! all(isNii)(list) ){ return false }
-
-                return Promise.all( list.map(readNIFTIFile) )
-
-                .then((result:any[]) => {
-                    
-                    /*i should evaluate headers too, but there is no guaranty they comply to specific format for different types*/
-
-                    const two = result.find(entry => entry.niftiHeader.datatypeCode===2);
-    
-                    const four = result.find(entry => entry.niftiHeader.datatypeCode===4);
-    
-                    const sixteen = result.find(entry => entry.niftiHeader.datatypeCode===16);
-    
-                    return true;
-    
-                })
-
-            }
-        )
-
-    }
 
 
 
@@ -271,46 +219,40 @@ export class App extends Component<AppProps,AppState>{
 
         this.setState({ error : "", loading : true });
 
-        const list = [...event.target.files];
+        const file = event.target.files[0];
+        const blob = makeSlice(file, 0, file.size); //new Blob([new Uint8Array(file)]);
 
-        this.valid(list)
+        const reader = new FileReader();
 
-        .then(
-            valid => {
+        reader.onloadend = (evt) => {
 
-                if(valid){  
+            if (evt.target['readyState'] === FileReader.DONE) {
 
-                    const data = reject(atlas)(list);
-        
-                    const a = list.find(atlas);
-        
-                    const n = data.length - 1;
-            
-                    this.workers = Array.apply(null, Array(n)).map(v => new Worker('worker.js'));
-            
-                    this.generateMeshes(data, a);
-                    
-                }else{
-        
-                    this.setState({ error : "Selected files have incorrect format", loading : false });
-        
+                const data = evt.target['result'];
+                try {
+                    this.buildMeshes(JSON.parse(data));
+                } catch(e) {
+                    this.setState({ error: "Invalid json file!"});
                 }
 
             }
-        )
+
+        };
+
+        reader.readAsText(blob);
 
     }
 
 
 
-    render() {  
+    render() {
 
         const { models, camera } = this.state;
 
 
 
         return <div style={{
-            width:"100%", 
+            width:"100%",
             height:"100%",
             flexDirection:"column",
             display:"flex"
@@ -318,8 +260,8 @@ export class App extends Component<AppProps,AppState>{
 
             <AppBar position="static" color="default">
                 <Toolbar>
-                    <div> 
-                        <input ref={e => { this.input = e; }} accept=".nii" id="contained-button-file" multiple={true} type="file" style={{display:"none"}} onChange={this.onLoad} />
+                    <div>
+                        <input ref={e => { this.input = e; }} accept=".json" id="contained-button-file" multiple={false} type="file" style={{display:"none"}} onChange={this.onLoad} />
                         <label htmlFor="contained-button-file">
                             <Button onClick={e => { this.input.value=null; }} disabled={this.state.loading} variant="contained" component="span">Load</Button>
                         </label>
@@ -333,7 +275,7 @@ export class App extends Component<AppProps,AppState>{
                         }}>
                         {
                             this.state.error
-                        }    
+                        }
                         </div>
                     }
                 </Toolbar>
@@ -347,11 +289,11 @@ export class App extends Component<AppProps,AppState>{
                 justifyItems:'center',
                 gridGap:"10px",
                 gridTemplateColumns:`repeat(${models.length > 1 ? 2 : 1}, [col-start] 1fr)`
-            }}> 
+            }}>
             {
-                models.map( (group,index) => 
+                models.map( (group,index) =>
 
-                    <div key={`group-${group.uuid}`} style={{width:"100%", height:"100%"}}>  
+                    <div key={`group-${group.uuid}`} style={{width:"100%", height:"100%"}}>
 
                         <div style={{
                             height:"100%",
@@ -360,10 +302,10 @@ export class App extends Component<AppProps,AppState>{
                             flexDirection:"column",
                             justifyContent:"space-between"
                         }}>
-                            <Space 
+                            <Space
                                 index={index}
-                                group={group} 
-                                onViewChange={this.onViewChange} 
+                                group={group}
+                                onViewChange={this.onViewChange}
                                 camera={camera}
                             />
                         </div>
@@ -372,19 +314,19 @@ export class App extends Component<AppProps,AppState>{
 
                 )
             }
-            </div> 
+            </div>
 
         </div>
 
     }
 
-} 
+}
 
 
 
 const init = () => {
 
-    const app = document.createElement('div'); 
+    const app = document.createElement('div');
 
     app.style.width = '100%';
 
@@ -401,7 +343,7 @@ const init = () => {
 
 
 ipcRenderer.once(
-    "loaded", 
+    "loaded",
     (event, external) => {
 
         init();

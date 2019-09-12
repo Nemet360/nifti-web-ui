@@ -1,6 +1,7 @@
-import { equalize } from "./equalize";
+import { equalize } from "../../app/utils/equalize";
 import * as THREE from "three";
 import { isNil } from 'ramda';
+import { Lut } from 'three/examples/jsm/math/Lut';
 
 
 
@@ -10,7 +11,7 @@ export const transformPerfusionColors = colors => {
 
     const { equalized, min, max } = equalize(colors);
 
-    const lut = new THREE['Lut']("rainbow", 512);
+    const lut = new Lut("rainbow", 512);
 
     lut.setMin(min);
 
@@ -31,7 +32,7 @@ export const transformPerfusionColors = colors => {
            rgb.push(color.r, color.g, color.b);
 
         }
-        
+
     }
 
     return rgb;

@@ -1,15 +1,15 @@
 import caseTable from './caseTable';
-import { normalize } from './utils/normalize';
-import { mode } from './utils/mode';
+import { normalize } from './normalize';
+import { mode } from './mode';
 import { compose, ifElse, isEmpty, reject, equals } from 'ramda';
-import { isNotNil } from './utils/isNotNil';
-import { isNotEmpty } from './utils/isNotEmpty';
+import { isNotNil } from './isNotNil';
+import { isNotEmpty } from './isNotEmpty';
 
 
 
-type input = { 
-  dims:{ x:number, y:number, z:number }, 
-  maskDims:{ x:number, y:number, z:number }, 
+type input = {
+  dims:{ x:number, y:number, z:number },
+  maskDims:{ x:number, y:number, z:number },
   scalars:number[],
   datatypeCode:number,
   mask:number[]
@@ -17,9 +17,9 @@ type input = {
 
 
 
-type output = { 
-  normals:any[], 
-  points:any[], 
+type output = {
+  normals:any[],
+  points:any[],
   colors:any[],
   types:any[]
 };
@@ -31,8 +31,8 @@ type requestData = (input:input) => output;
 
 
 const model = {
-  computeNormals:true, 
-  mergePoints:false, 
+  computeNormals:true,
+  mergePoints:false,
   contourValue:1
 };
 
@@ -100,7 +100,7 @@ export const marchingCubes = () : requestData => {
     let sm;
 
 
-    
+
     if (i === 0) {
       sp = s[i + 1 + j * dims[0] + k * slice];
       sm = s[i + j * dims[0] + k * slice];
@@ -237,18 +237,18 @@ export const marchingCubes = () : requestData => {
     ids[5] = ids[4] + 1;
     ids[6] = ids[4] + dims[0];
     ids[7] = ids[6] + 1;
-    
+
     for (let ii = 0; ii < 8; ++ii) { voxelScalars[ii] = scalars[ids[ii]]; }
 
     if(isNotNil(mask)){
 
       for (let ii = 0; ii < 8; ++ii) { maskScalars[ii] = mask[ids[ii]]; }
 
-      type = compose(   
+      type = compose(
 
         ifElse( isEmpty, () => 0, mode ),
 
-        reject( equals(0) ) 
+        reject( equals(0) )
 
       )(maskScalars)
 
@@ -275,7 +275,7 @@ export const marchingCubes = () : requestData => {
     getVoxelGradients(i, j, k, dims, slice, spacing, scalars);
 
     for (let idx = 0; voxelTris[idx] >= 0; idx += 3) {
-     
+
       for (let eid = 0; eid < 3; eid++) {
 
         const edgeVerts = caseTable.getEdge(voxelTris[idx + eid]);
@@ -316,7 +316,7 @@ export const marchingCubes = () : requestData => {
         points.push(xyz[0], xyz[1], xyz[2])
 
         colors.push( (voxelScalars[edgeVerts[1]] + voxelScalars[edgeVerts[0]]) / 2 );
-      
+
         if(isNotNil(type)){ types.push(type) }
 
       }
@@ -340,7 +340,7 @@ export const marchingCubes = () : requestData => {
 
     model.contourValue = datatypeCode===4 ? 180 : 1;
 
-    const color = datatypeCode===16;  
+    const color = datatypeCode===16;
 
     const { x,y,z } = dims;
 
@@ -367,11 +367,11 @@ export const marchingCubes = () : requestData => {
     };
 
     for (let k = 0; k < z - 1; ++k) {
-      
+
       for (let j = 0; j < y - 1; ++j) {
 
         for (let i = 0; i < x - 1; ++i) {
-          
+
           const result = produceTriangles({
             cVal:model.contourValue,
             i,
@@ -415,9 +415,9 @@ export const marchingCubes = () : requestData => {
 
     }
 
-    return { 
-      colors, 
-      points, 
+    return {
+      colors,
+      points,
       normals,
       types
     } as output

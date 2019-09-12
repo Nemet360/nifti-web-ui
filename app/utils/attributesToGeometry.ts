@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import { compose, ifElse, isEmpty, reject, equals } from 'ramda';
-import { mode } from "./mode";
-import { isNotEmpty } from "./isNotEmpty";
-import { isNotNil } from "./isNotNil";
+import { mode } from "../../cli/utils/mode";
+import { isNotEmpty } from "../../cli/utils/isNotEmpty";
+import { isNotNil } from "../../cli/utils/isNotNil";
 
 
 
 export const attributesToGeometry = ({ index, position, color, normal, type, niftiHeader }) => {
-    
+
     const geometry = new THREE.BufferGeometry();
 
     geometry.setIndex( new THREE.BufferAttribute( new Uint32Array(index), 1 ) );
@@ -19,9 +19,8 @@ export const attributesToGeometry = ({ index, position, color, normal, type, nif
     geometry.addAttribute('normal', new THREE.BufferAttribute( new Float32Array(normal), 3) );
 
     geometry.computeBoundingBox();
-    
-    if(niftiHeader.datatypeCode===16){
 
+    if(niftiHeader.datatypeCode===16){
         const g = new THREE.Geometry().fromBufferGeometry(geometry);
 
         if(
@@ -33,14 +32,14 @@ export const attributesToGeometry = ({ index, position, color, normal, type, nif
                 const { a, b, c } = g.faces[i];
 
                 const t1 = type[a * 3];
-                
+
                 const t2 = type[b * 3];
-                
+
                 const t3 = type[c * 3];
 
                 const list = [t1,t2,t3];
 
-                g.faces[i]['type'] = compose(   
+                g.faces[i]['type'] = compose(
 
                     ifElse(isEmpty, () => 0, mode),
 

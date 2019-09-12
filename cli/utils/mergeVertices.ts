@@ -27,7 +27,7 @@ export const mergeVertices = (position:number[], normal:number[], colors:number[
     let t1 = 0;
     let t2 = 0;
     let t3 = 0;
-    
+
     let index = undefined;
     let withTypes = isNotNil(types) && isNotEmpty(types);
 
