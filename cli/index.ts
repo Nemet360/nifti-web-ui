@@ -48,6 +48,7 @@ function valid(list) {
 }
 
 function loadFiles(files) {
+  console.log('Working...');
   valid(files)
 
     .then(

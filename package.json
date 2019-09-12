@@ -9,9 +9,10 @@
   "main": "development/main.js",
   "scripts": {
     "start": "node_modules/.bin/electron .",
-    "build": "npm run build:main:production; npm run build:cli:production",
-    "build:main:production": "webpack --env development --config webpack.main.config.js",
-    "build:cli:production": "webpack --env development --config webpack.cli.config.js; pkg ./development/cli.js --target=node10-win -o cli.exe ",
+    "build": "npm-run-all build:main:production build:cli:production build:exe",
+    "build:main:production": "exitzero npx webpack --env development --config webpack.main.config.js",
+    "build:cli:production": "exitzero npx webpack --env development --config webpack.cli.config.js",
+    "build:exe": "npx pkg ./development/cli.js --target=node10-linux -o cli.exe",
     "build:cli": "webpack -w --env development --config webpack.cli.config.js",
     "build:main": "webpack -w --env development --config webpack.main.config.js"
   },
@@ -77,6 +78,8 @@
     "webpack-dev-server": "^3.2.1"
   },
   "dependencies": {
+    "exitzero": "^1.0.1",
+    "npm-run-all": "^4.1.5",
     "pkg": "^4.4.0",
     "readline": "^1.3.0",
     "readline-sync": "^1.4.10",
