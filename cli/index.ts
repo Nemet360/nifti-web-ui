@@ -2,6 +2,7 @@ import { readNIFTIFile } from './utils/readNIFTIFile';
 import { all, reject, isEmpty } from 'ramda';
 import { transform } from './utils/transform';
 import * as fs from 'fs';
+import { basename } from 'path';
 
 const files = process.argv.slice(2);
 
@@ -12,7 +13,7 @@ if(files.length !== 5) {
 
 const outputFile = files.pop();
 
-const atlas = v => v.name==="wBRODMANN_SubCort_WM.nii";
+const atlas = v => basename(v) ==="wBRODMANN_SubCort_WM.nii";
 
 function valid(list) {
 
