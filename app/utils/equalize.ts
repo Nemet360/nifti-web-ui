@@ -1,28 +1,26 @@
 import { histogram } from "./histogram";
 
-
-
-export const equalize = values => {
+export const equalize = (values) => {
 
     const result = [];
 
     const factor = 1000;
 
-    const toInt = value => {
-        
-        return Math.round( value < 0 ? 0 : value*factor );
+    const toInt = (value) => {
 
-    }
+        return Math.round( value < 0 ? 0 : value * factor );
+
+    };
 
     const rounded = values.map( toInt );
 
     const h = histogram(rounded);
-    
+
     const histogramSum = [];
 
-    let total = rounded.length;
+    const total = rounded.length;
 
-    let types = h.length;
+    const types = h.length;
 
     let sum = 0;
 
@@ -30,26 +28,24 @@ export const equalize = values => {
 
     let max = 0;
 
-    for (let i = 0; i < types; i++) { 
+    for (let i = 0; i < types; i++) {
 
-        sum += h[i]; 
+        sum += h[i];
 
-        histogramSum[i] = Math.round( (sum * types) / total ); 
-
-    } 
-
-    for(let i=0; i < total; i++){
-
-        result[i] = histogramSum[ rounded[i] ];
-
-        if(result[i]>max){ max = result[i] }
-        
-        if(result[i]<min){ min = result[i] }
+        histogramSum[i] = Math.round( (sum * types) / total );
 
     }
 
+    for (let i = 0; i < total; i++) {
 
+        result[i] = histogramSum[ rounded[i] ];
 
-    return { equalized:result, min, max };
+        if (result[i] > max) { max = result[i]; }
 
-}
+        if (result[i] < min) { min = result[i]; }
+
+    }
+
+    return { equalized: result, min, max };
+
+};

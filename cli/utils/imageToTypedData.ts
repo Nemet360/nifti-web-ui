@@ -1,12 +1,10 @@
 const nifti = require("nifti-reader-js");
 
-
-
 export const imageToTypedData = (niftiImage, niftiHeader) => {
 
     let typedData = new Uint8Array(niftiImage) as any;
 
-    /*if(niftiHeader.datatypeCode===16){ 
+    /*if(niftiHeader.datatypeCode===16){
 
         let temp : any = new ArrayBuffer(typedData.length);
         temp = new Uint8Array(temp);
@@ -22,9 +20,7 @@ export const imageToTypedData = (niftiImage, niftiHeader) => {
 
         console.log(result.length);
 
-
-
-        return result; 
+        return result;
     }*/
 
     if (niftiHeader.datatypeCode === nifti.NIFTI1.TYPE_UINT8) {
@@ -47,4 +43,4 @@ export const imageToTypedData = (niftiImage, niftiHeader) => {
 
     return typedData;
 
-}
+};

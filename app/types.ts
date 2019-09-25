@@ -1,2 +1,2 @@
 
-export type niftiData = { niftiHeader:any, niftiImage:any };
+export interface niftiData { niftiHeader: any, niftiImage: any }

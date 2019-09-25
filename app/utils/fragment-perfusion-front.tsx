@@ -1,6 +1,4 @@
-import * as React from 'react';
-
-
+import * as React from "react";
 
 export const fragment_perfusion_front = (
 
@@ -17,7 +15,7 @@ export const fragment_perfusion_front = (
 
         vec4 getColor(vec4 c, vec3 n){
             float d = dot(normalize(light),vNormal);
-            vec4 color = d * c; 
+            vec4 color = d * c;
             return color;
         }
 
@@ -26,9 +24,9 @@ export const fragment_perfusion_front = (
             color[3] = 1.0;
 
             gl_FragColor = color;
-            
+
         }
     `}
     </script>
-    
+
 );

@@ -258,8 +258,6 @@ const MARCHING_CUBE_CASES = [
     [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1] /* 255 0 */,
 ];
 
-
-
 const EDGES = [
     [0, 1],
     [1, 3],
@@ -272,24 +270,18 @@ const EDGES = [
     [0, 4],
     [1, 5],
     [2, 6],
-    [3, 7]
+    [3, 7],
 ];
-
-
 
 function getCase(index) {
     return MARCHING_CUBE_CASES[index];
 }
 
-
-
 function getEdge(eid) {
     return EDGES[eid];
 }
 
-
-
 export default {
     getCase,
-    getEdge
+    getEdge,
 };

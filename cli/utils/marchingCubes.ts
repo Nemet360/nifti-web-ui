@@ -1,59 +1,43 @@
-import caseTable from './caseTable';
-import { normalize } from './normalize';
-import { mode } from './mode';
-import { compose, ifElse, isEmpty, reject, equals } from 'ramda';
-import { isNotNil } from './isNotNil';
-import { isNotEmpty } from './isNotEmpty';
+import { compose, equals, ifElse, isEmpty, reject } from "ramda";
+import caseTable from "./caseTable";
+import { isNotEmpty } from "./isNotEmpty";
+import { isNotNil } from "./isNotNil";
+import { mode } from "./mode";
+import { normalize } from "./normalize";
 
+interface input {
+  dims: { x: number, y: number, z: number };
+  maskDims: { x: number, y: number, z: number };
+  scalars: number[];
+  datatypeCode: number;
+  mask: number[];
+}
 
+interface output {
+  normals: any[];
+  points: any[];
+  colors: any[];
+  types: any[];
+}
 
-type input = {
-  dims:{ x:number, y:number, z:number },
-  maskDims:{ x:number, y:number, z:number },
-  scalars:number[],
-  datatypeCode:number,
-  mask:number[]
-};
-
-
-
-type output = {
-  normals:any[],
-  points:any[],
-  colors:any[],
-  types:any[]
-};
-
-
-
-type requestData = (input:input) => output;
-
-
+type requestData = (input: input) => output;
 
 const model = {
-  computeNormals:true,
-  mergePoints:false,
-  contourValue:1
+  computeNormals: true,
+  mergePoints: false,
+  contourValue: 1,
 };
-
-
 
 const CASE_MASK = [1, 2, 4, 8, 16, 32, 64, 128];
 
-
-
 const VERT_MAP = [0, 1, 3, 2, 4, 5, 7, 6];
 
+export const marchingCubes = (): requestData => {
 
-
-export const marchingCubes = () : requestData => {
-
-  let ids = [];
-  let voxelScalars = [];
-  let voxelGradients = [];
-  let voxelPts = [];
-
-
+  const ids = [];
+  const voxelScalars = [];
+  const voxelGradients = [];
+  const voxelPts = [];
 
   const getVoxelPoints = (i, j, k, dims, origin, spacing) => {
 
@@ -91,15 +75,11 @@ export const marchingCubes = () : requestData => {
 
   };
 
-
-
   const getPointGradient = (i, j, k, dims, slice, spacing, s, g) => {
 
     let sp;
 
     let sm;
-
-
 
     if (i === 0) {
       sp = s[i + 1 + j * dims[0] + k * slice];
@@ -115,8 +95,6 @@ export const marchingCubes = () : requestData => {
       g[0] = (0.5 * (sm - sp)) / spacing[0];
     }
 
-
-
     if (j === 0) {
       sp = s[i + (j + 1) * dims[0] + k * slice];
       sm = s[i + j * dims[0] + k * slice];
@@ -130,8 +108,6 @@ export const marchingCubes = () : requestData => {
       sm = s[i + (j - 1) * dims[0] + k * slice];
       g[1] = (0.5 * (sm - sp)) / spacing[1];
     }
-
-
 
     if (k === 0) {
       sp = s[i + j * dims[0] + (k + 1) * slice];
@@ -148,8 +124,6 @@ export const marchingCubes = () : requestData => {
     }
 
   };
-
-
 
   const getVoxelGradients = (i, j, k, dims, slice, spacing, scalars) => {
 
@@ -205,8 +179,6 @@ export const marchingCubes = () : requestData => {
 
   };
 
-
-
   const produceTriangles = ({
     cVal,
     i,
@@ -217,7 +189,7 @@ export const marchingCubes = () : requestData => {
     origin,
     spacing,
     scalars,
-    mask
+    mask,
   }) => {
     const points = [];
     const normals = [];
@@ -240,7 +212,7 @@ export const marchingCubes = () : requestData => {
 
     for (let ii = 0; ii < 8; ++ii) { voxelScalars[ii] = scalars[ids[ii]]; }
 
-    if(isNotNil(mask)){
+    if (isNotNil(mask)) {
 
       for (let ii = 0; ii < 8; ++ii) { maskScalars[ii] = mask[ids[ii]]; }
 
@@ -248,9 +220,9 @@ export const marchingCubes = () : requestData => {
 
         ifElse( isEmpty, () => 0, mode ),
 
-        reject( equals(0) )
+        reject( equals(0) ),
 
-      )(maskScalars)
+      )(maskScalars);
 
     }
 
@@ -301,48 +273,46 @@ export const marchingCubes = () : requestData => {
 
         normalize(n);
 
-        if(
-          n[0]===0 && n[1]===0 && n[2]===0
-        ){
+        if (
+          n[0] === 0 && n[1] === 0 && n[2] === 0
+        ) {
 
           normals.push(0.5, 0.5, 0.5);
 
-        }else{
+        } else {
 
           normals.push(n[0], n[1], n[2]);
 
         }
 
-        points.push(xyz[0], xyz[1], xyz[2])
+        points.push(xyz[0], xyz[1], xyz[2]);
 
         colors.push( (voxelScalars[edgeVerts[1]] + voxelScalars[edgeVerts[0]]) / 2 );
 
-        if(isNotNil(type)){ types.push(type) }
+        if (isNotNil(type)) { types.push(type); }
 
       }
 
     }
 
     return {
-      p:points,
-      n:normals,
-      c:colors,
-      t:isEmpty(types) ? null : types
-    }
+      p: points,
+      n: normals,
+      c: colors,
+      t: isEmpty(types) ? null : types,
+    };
 
   };
 
-
-
-  return input => {
+  return (input) => {
 
     const { dims, scalars, datatypeCode, mask } = input;
 
-    model.contourValue = datatypeCode===4 ? 180 : 1;
+    model.contourValue = datatypeCode === 4 ? 180 : 1;
 
-    const color = datatypeCode===16;
+    const color = datatypeCode === 16;
 
-    const { x,y,z } = dims;
+    const { x, y, z } = dims;
 
     const points = [];
 
@@ -358,11 +328,11 @@ export const marchingCubes = () : requestData => {
 
     const origin = [ 0, 0, 0 ];
 
-    const avg = c => {
+    const avg = (c) => {
 
-      const sum = c.reduce((a,v) => a+v, 0);
+      const sum = c.reduce((a, v) => a + v, 0);
 
-      return c.map(v => sum/c.length);
+      return c.map((v) => sum / c.length);
 
     };
 
@@ -373,19 +343,19 @@ export const marchingCubes = () : requestData => {
         for (let i = 0; i < x - 1; ++i) {
 
           const result = produceTriangles({
-            cVal:model.contourValue,
+            cVal: model.contourValue,
             i,
             j,
             k,
             slice,
-            dims:[x,y,z],
+            dims: [x, y, z],
             origin,
             spacing,
             scalars,
-            mask
+            mask,
           });
 
-          if(result && result.p.length > 0){
+          if (result && result.p.length > 0) {
 
             const { p, n, c, t } = result;
 
@@ -393,15 +363,15 @@ export const marchingCubes = () : requestData => {
 
             normals.push(...n);
 
-            if(colors){
+            if (colors) {
 
               colors.push(...avg(c));
 
             }
 
-            if(
+            if (
               isNotNil(types) && isNotEmpty(t)
-            ){
+            ) {
 
               types.push(...t);
 
@@ -419,9 +389,9 @@ export const marchingCubes = () : requestData => {
       colors,
       points,
       normals,
-      types
-    } as output
+      types,
+    } as output;
 
-  }
+  };
 
-}
+};

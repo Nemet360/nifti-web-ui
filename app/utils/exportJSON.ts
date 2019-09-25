@@ -1,11 +1,9 @@
-import { Scene, Mesh } from "three";
+import { Mesh, Scene } from "three";
 import * as THREE from "three";
 
+export const exportJSON = (scene: Scene, p: string): void => {
 
-
-export const exportJSON = (scene:Scene, p:string) : void => {
-
-    const object = scene.children.find(mesh => mesh.userData.brain) as Mesh;
+    const object = scene.children.find((mesh) => mesh.userData.brain) as Mesh;
 
     let json = object.geometry.toJSON();
 
@@ -28,15 +26,15 @@ export const exportJSON = (scene:Scene, p:string) : void => {
         }
 
     }
-     
+
     if(buf.length>0){
         wstream.write(buf);
         buf='';
-    } 
-    
+    }
+
     json = undefined;
 
     wstream.end();
     */
 
-}
+};

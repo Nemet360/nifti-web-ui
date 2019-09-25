@@ -16,11 +16,9 @@ const norm = (x, n = 3) => {
       }
     }
 
-}
+};
 
-
-
-export const normalize = x => {
+export const normalize = (x) => {
 
     const den = norm(x);
 
@@ -32,4 +30,4 @@ export const normalize = x => {
 
     return den;
 
-}
+};

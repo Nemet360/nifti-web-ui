@@ -1,8 +1,6 @@
+import * as fs from "fs";
 import { imageToTypedData } from "./imageToTypedData";
-import * as fs from 'fs';
 const nifti = require("nifti-reader-js");
-
-
 
 const readNIFTI = (data) => {
 
@@ -19,30 +17,25 @@ const readNIFTI = (data) => {
 
     return { niftiHeader, niftiImage };
 
-}
+};
 
-
-
-
-
-export const readNIFTIFile = file => (
+export const readNIFTIFile = (file) => (
 
     new Promise(
 
       (resolve, reject) => {
           fs.readFile(file, (err, data) => {
-            if(err) reject(err);
+            if (err) { reject(err); }
             const model = readNIFTI(new Uint8Array(data).buffer);
 
             model.niftiImage = imageToTypedData(model.niftiImage, model.niftiHeader);
 
             resolve(model);
 
-          })
+          });
 
-
-        }
+        },
 
     )
 
-)
+);

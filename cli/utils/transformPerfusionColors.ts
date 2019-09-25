@@ -1,11 +1,9 @@
-import { equalize } from "../../app/utils/equalize";
+import { isNil } from "ramda";
 import * as THREE from "three";
-import { isNil } from 'ramda';
-import { Lut } from 'three/examples/jsm/math/Lut';
+import { Lut } from "three/examples/jsm/math/Lut";
+import { equalize } from "../../app/utils/equalize";
 
-
-
-export const transformPerfusionColors = colors => {
+export const transformPerfusionColors = (colors) => {
 
     const rgb = [];
 
@@ -17,17 +15,17 @@ export const transformPerfusionColors = colors => {
 
     lut.setMax(max);
 
-    for(let i = 0; i < equalized.length; i++){
+    for (let i = 0; i < equalized.length; i++) {
 
         const color = lut.getColor( equalized[i] );
 
-        if(isNil(color)){
+        if (isNil(color)) {
 
-           console.log('reason', equalized[i]);
+           console.log("reason", equalized[i]);
 
            rgb.push(0.5, 0.5, 0.5);
 
-        }else{
+        } else {
 
            rgb.push(color.r, color.g, color.b);
 
@@ -37,4 +35,4 @@ export const transformPerfusionColors = colors => {
 
     return rgb;
 
-}
+};

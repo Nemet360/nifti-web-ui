@@ -1,2 +1,2 @@
 
-export const typeEquals = type => action => action.type===type;
+export const typeEquals = (type) => (action) => action.type === type;

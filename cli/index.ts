@@ -1,63 +1,63 @@
-import { readNIFTIFile } from './utils/readNIFTIFile';
-import { all, reject, isEmpty } from 'ramda';
-import { transform } from './utils/transform';
-import * as fs from 'fs';
-import { basename } from 'path';
+import * as fs from "fs";
+import { basename } from "path";
+import { all, isEmpty, reject } from "ramda";
+import { readNIFTIFile } from "./utils/readNIFTIFile";
+import { transform } from "./utils/transform";
 
 const files = process.argv.slice(2);
 
-if(files.length !== 5) {
+if (files.length !== 5) {
   console.log("You should put 5 files!");
   process.exit(0);
 }
 
 const outputFile = files.pop();
 
-const atlas = v => basename(v) ==="wBRODMANN_SubCort_WM.nii";
+const atlas = (v) => basename(v) === "wBRODMANN_SubCort_WM.nii";
 
 function valid(list) {
 
-  const isNii = entry => entry.indexOf(".nii")!==-1;
+  const isNii = (entry) => entry.indexOf(".nii") !== -1;
 
   return Promise.resolve(false)
 
     .then(
-      valid => {
+      (valid) => {
 
-        if( list.length!==4 || ! all(isNii)(list) ){
-          console.log('You need to input 4 files!');
+        if ( list.length !== 4 || ! all(isNii)(list) ) {
+          console.log("You need to input 4 files!");
           return;
         }
 
         return Promise.all( list.map(readNIFTIFile) )
 
-          .then((result:any[]) => {
+          .then((result: any[]) => {
 
             /*i should evaluate headers too, but there is no guaranty they comply to specific format for different types*/
 
-            const two = result.find(entry => entry.niftiHeader.datatypeCode===2);
+            const two = result.find((entry) => entry.niftiHeader.datatypeCode === 2);
 
-            const four = result.find(entry => entry.niftiHeader.datatypeCode===4);
+            const four = result.find((entry) => entry.niftiHeader.datatypeCode === 4);
 
-            const sixteen = result.find(entry => entry.niftiHeader.datatypeCode===16);
+            const sixteen = result.find((entry) => entry.niftiHeader.datatypeCode === 16);
 
             return true;
 
-          })
+          });
 
-      }
-    )
+      },
+    );
 
 }
 
 function loadFiles(files) {
-  console.log('Working...');
+  console.log("Working...");
   valid(files)
 
     .then(
-      valid => {
+      (valid) => {
 
-        if(valid){
+        if (valid) {
 
           const data = reject(atlas)(files);
 
@@ -65,46 +65,42 @@ function loadFiles(files) {
 
           const n = data.length - 1;
 
-
           generateMeshes(data, a);
 
-        }else{
+        } else {
 
           console.log("Selected files have incorrect format");
 
         }
 
-      }
+      },
+    );
 }
 
-function generateMeshes (data, atlas) {
+function generateMeshes(data, atlas) {
 
-  if(isEmpty(data)){ return }
+  if (isEmpty(data)) { return; }
 
   const first = data[0];
 
   const remainder = data.slice(1, data.length);
 
-  const workers = remainder.map(data =>  transform({ file: data, atlas }));
-
-
+  const workers = remainder.map((data) =>  transform({ file: data, atlas }));
 
   return Promise.all([
 
-    transform({file:first, atlas}),
+    transform({file: first, atlas}),
 
-    ...workers
+    ...workers,
 
   ])
 
-    .then(collection => {
+    .then((collection) => {
 
       return fs.writeFileSync(outputFile, JSON.stringify(collection));
 
-
-    })
+    });
 
 }
-
 
 loadFiles(files);

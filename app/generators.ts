@@ -1,14 +1,12 @@
-import * as React from 'react';
-import * as ReactDOM from 'react-dom';
+import * as React from "react";
+import * as ReactDOM from "react-dom";
 import * as THREE from "three";
-import { MeshPhysicalMaterial } from 'three';
-import { attributesToGeometry } from './utils/attributesToGeometry';
-
-
+import { MeshPhysicalMaterial } from "three";
+import { attributesToGeometry } from "./utils/attributesToGeometry";
 
 export const generators = {
 
-    "16" : attributes => {
+    16 : (attributes) => {
         const geometry = attributesToGeometry(attributes);
 
         geometry.scale(0.95, 0.95, 0.95);
@@ -17,61 +15,61 @@ export const generators = {
 
         const material1 = [
 
-            new THREE['MeshPhysicalMaterial']( {
+            new THREE.MeshPhysicalMaterial( {
                 side : THREE.FrontSide,
                 vertexColors : THREE.VertexColors,
                 transparent : false,
                 depthWrite : true,
                 metalness : 0.0,
                 roughness : 0.0,
-                clearCoat : 1.0,
-                clearCoatRoughness : 1.0,
+                clearcoat : 1.0,
+                clearcoatRoughness : 1.0,
                 reflectivity : 0.5,
-                opacity : 1
+                opacity : 1,
             } ),
 
-            new THREE['MeshPhysicalMaterial']( {
+            new THREE.MeshPhysicalMaterial( {
                 side : THREE.FrontSide,
                 vertexColors : THREE.VertexColors,
                 transparent : true,
                 depthWrite : false,
                 metalness : 0.0,
                 roughness : 0.0,
-                clearCoat : 1.0,
-                clearCoatRoughness : 1.0,
+                clearcoat : 1.0,
+                clearcoatRoughness : 1.0,
                 reflectivity : 0.5,
-                opacity : 0.1
-            } )
+                opacity : 0.1,
+            } ),
 
         ];
 
         const material2 = [
 
-            new THREE['MeshPhysicalMaterial']( {
+            new THREE.MeshPhysicalMaterial( {
                 side : THREE.BackSide,
                 vertexColors : THREE.VertexColors,
                 transparent : false,
                 depthWrite : false,
                 metalness : 0.0,
                 roughness : 0.0,
-                clearCoat : 1.0,
-                clearCoatRoughness : 1.0,
+                clearcoat : 1.0,
+                clearcoatRoughness : 1.0,
                 reflectivity : 0.5,
-                opacity : 1
+                opacity : 1,
             } ),
 
-            new THREE['MeshPhysicalMaterial']( {
+            new THREE.MeshPhysicalMaterial( {
                 side : THREE.BackSide,
                 vertexColors : THREE.VertexColors,
                 transparent : true,
                 depthWrite : false,
                 metalness : 0.0,
                 roughness : 0.0,
-                clearCoat : 1.0,
-                clearCoatRoughness : 1.0,
+                clearcoat : 1.0,
+                clearcoatRoughness : 1.0,
                 reflectivity : 0.5,
-                opacity : 0.1
-            } )
+                opacity : 0.1,
+            } ),
 
         ];
 
@@ -111,7 +109,7 @@ export const generators = {
 
     },
 
-    "2" : attributes => {
+    2 : (attributes) => {
 
         const geometry = attributesToGeometry(attributes);
 
@@ -122,30 +120,28 @@ export const generators = {
             vertexColors : THREE.VertexColors,
             metalness : 0.0,
             roughness : 0.0,
-            clearCoat : 1.0,
-            clearCoatRoughness : 1.0,
+            clearcoat : 1.0,
+            clearcoatRoughness : 1.0,
             reflectivity : 1.0,
             transparent : true,
             opacity : 1,
             clipShadows : true,
-            depthWrite : false
+            depthWrite : false,
         });
-
 
         const material2 = new MeshPhysicalMaterial({
             side : THREE.BackSide,
             vertexColors : THREE.VertexColors,
             metalness : 0.0,
             roughness : 0.0,
-            clearCoat : 1.0,
-            clearCoatRoughness : 1.0,
+            clearcoat : 1.0,
+            clearcoatRoughness : 1.0,
             reflectivity : 1.0,
             transparent : true,
             opacity : 1,
             clipShadows : true,
-            depthWrite : false
+            depthWrite : false,
         });
-
 
         const m1 = new THREE.Mesh(geometry, material1);
 
@@ -181,7 +177,7 @@ export const generators = {
 
     },
 
-    "4" : attributes => {
+    4 : (attributes) => {
 
         const geometry = attributesToGeometry(attributes);
 
@@ -194,13 +190,13 @@ export const generators = {
             vertexColors : THREE.VertexColors,
             metalness : 0.0,
             roughness : 0.5,
-            clearCoat : 0.5,
-            clearCoatRoughness : 0.5,
+            clearcoat : 0.5,
+            clearcoatRoughness : 0.5,
             reflectivity : 0.5,
             transparent : false,
             opacity : 1,
             clipShadows : true,
-            depthWrite : true
+            depthWrite : true,
         });
 
         const material2 = new MeshPhysicalMaterial({
@@ -208,13 +204,13 @@ export const generators = {
             vertexColors : THREE.VertexColors,
             metalness : 0.0,
             roughness : 0.5,
-            clearCoat : 0.5,
-            clearCoatRoughness : 0.5,
+            clearcoat : 0.5,
+            clearcoatRoughness : 0.5,
             reflectivity : 0.5,
             transparent : true,
             opacity : 1,
             clipShadows : true,
-            depthWrite : false
+            depthWrite : false,
         });
 
         const m1 = new THREE.Mesh(geometry, material1);
@@ -261,6 +257,6 @@ export const generators = {
 
         return group;
 
-    }
+    },
 
-}
+};

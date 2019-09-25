@@ -1,51 +1,50 @@
 const path = require("path");
 const webpack = require("webpack");
 
-
 module.exports = env => {
 
   return {
 
-      mode:env,
+      mode: env,
 
-      context:__dirname  + "/cli",
+      context: __dirname  + "/cli",
 
-      entry: './index.ts',
+      entry: "./index.ts",
 
       output: {
-        filename: 'cli.js',
-        path: path.resolve(__dirname, env)
+        filename: "cli.js",
+        path: path.resolve(__dirname, env),
       },
 
-      target: 'node',
+      target: "node",
 
       resolve: {
-        extensions: ['.js', '.ts', '.tsx', '.jsx']
+        extensions: [".js", ".ts", ".tsx", ".jsx"],
       },
 
-      devtool:'source-map',
+      devtool: "source-map",
 
       module: {
-        rules:[
+        rules: [
           {
-            test:/\.ts$/,
+            test: /\.ts$/,
             exclude: /(node_modules)/,
-            loader:"awesome-typescript-loader"
+            loader: "awesome-typescript-loader",
           },
           {
             test: /\.js$/,
-            loader: 'babel-loader',
+            loader: "babel-loader",
             exclude: /(node_modules|bower_components|\.spec\.js)/,
             options: {
               presets: ["@babel/env"],
               plugins: [
                 "@babel/plugin-proposal-object-rest-spread",
                 ["@babel/plugin-proposal-decorators", {"legacy": true}],
-                "@babel/plugin-proposal-class-properties"
-              ]
-            }
-          }
-        ]
+                "@babel/plugin-proposal-class-properties",
+              ],
+            },
+          },
+        ],
       },
 
       node: {
@@ -54,8 +53,8 @@ module.exports = env => {
       },
       plugins: [
         new webpack.BannerPlugin({ banner: "#!/usr/bin/env node", raw: true }),
-      ]
+      ],
 
-  }
+  };
 
 };

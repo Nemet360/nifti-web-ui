@@ -1,5 +1,3 @@
-import { isNil, complement } from 'ramda';
+import { complement, isNil } from "ramda";
 
-
-
-export const isNotNil= complement(isNil);
+export const isNotNil = complement(isNil);

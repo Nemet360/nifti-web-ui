@@ -1,9 +1,7 @@
-import { isEmpty, isNil, compose, sort, drop, toPairs, divide, uniqBy, splitEvery, range, path, prop, flatten, clone, map } from 'ramda';
-import { taubinSmooth } from '../laplacian';
+import { clone, compose, divide, drop, flatten, isEmpty, isNil, map, path, prop, range, sort, splitEvery, toPairs, uniqBy } from "ramda";
+import { taubinSmooth } from "../laplacian";
 
-
-
-export const smoothGeometry = (geometry, params={ passBand: 0.2, iters: 20 }) => {
+export const smoothGeometry = (geometry, params= { passBand: 0.2, iters: 20 }) => {
 
     const a = splitEvery(3, geometry.index.array);
 
@@ -13,4 +11,4 @@ export const smoothGeometry = (geometry, params={ passBand: 0.2, iters: 20 }) =>
 
     return flatten( c );
 
-}
+};

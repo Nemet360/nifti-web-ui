@@ -1,29 +1,27 @@
+import { initializeColors } from "./initializeColors";
+import { isNotNil } from "./isNotNil";
 import { marchingCubes } from "./marchingCubes";
+import { mergeVertices } from "./mergeVertices";
 import { readNIFTIFile } from "./readNIFTIFile";
 import { transformPerfusionColors } from "./transformPerfusionColors";
-import { initializeColors } from "./initializeColors";
-import { mergeVertices } from "./mergeVertices";
-import { isNotNil } from "./isNotNil";
-
-
 
 export const transform = async ({file, atlas}) => {
 
-    if( ! file ){ return Promise.resolve(null) }
+    if ( ! file ) { return Promise.resolve(null); }
 
-    let mask : any = null;
+    let mask: any = null;
 
-    let maskDims : any = null;
+    let maskDims: any = null;
 
     const requestData = marchingCubes();
 
-    const model : any = await readNIFTIFile(file);
+    const model: any = await readNIFTIFile(file);
 
     const { niftiHeader, niftiImage } = model;
 
-    if(
-        isNotNil(atlas) && niftiHeader.datatypeCode===16
-    ){
+    if (
+        isNotNil(atlas) && niftiHeader.datatypeCode === 16
+    ) {
 
         mask = await readNIFTIFile(atlas);
 
@@ -38,9 +36,9 @@ export const transform = async ({file, atlas}) => {
     const result = requestData({
         dims,
         maskDims,
-        scalars:niftiImage,
+        scalars: niftiImage,
         mask,
-        datatypeCode:niftiHeader.datatypeCode
+        datatypeCode: niftiHeader.datatypeCode,
     });
 
     const { colors, points, normals, types } = result;
@@ -55,7 +53,7 @@ export const transform = async ({file, atlas}) => {
         color : data.out_color,
         normal : data.out_normal,
         type : data.out_type,
-        niftiHeader
-    }
+        niftiHeader,
+    };
 
-}
+};
