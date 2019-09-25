@@ -2,3 +2,4 @@ node_modules
 output
 development
 production
+.idea

@@ -11,7 +11,7 @@ import { filter } from "rxjs/operators";
 import * as THREE from "three";
 import { PerspectiveCamera, Vector3 } from "three";
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from "three-mesh-bvh";
-import { isNotEmpty } from "../cli/utils/isNotEmpty";
+import { isNotEmpty } from "./utils/isNotEmpty";
 import "./assets/fonts/index.css";
 import "./assets/styles.css";
 import { generators } from "./generators";

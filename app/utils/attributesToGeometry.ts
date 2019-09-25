@@ -1,8 +1,7 @@
 import { compose, equals, ifElse, isEmpty, reject } from "ramda";
 import * as THREE from "three";
-import { isNotEmpty } from "../../cli/utils/isNotEmpty";
-import { isNotNil } from "../../cli/utils/isNotNil";
-import { mode } from "../../cli/utils/mode";
+import { isNotEmpty } from "./isNotEmpty";
+import { mode } from "./mode";
 
 export const attributesToGeometry = ({ index, position, color, normal, type, niftiHeader }) => {
 

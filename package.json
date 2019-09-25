@@ -8,12 +8,8 @@
   },
   "main": "development/main.js",
   "scripts": {
-    "build": "npm-run-all build:main:production build:cli:production build:exe",
-    "build:main:production": "exitzero npx webpack --env development --config webpack.main.config.js",
-    "build:cli:production": "exitzero npx webpack --env development --config webpack.cli.config.js",
-    "build:exe": "npx pkg ./development/cli.js --target=node10 -o cli.exe",
-    "build:cli": "webpack -w --env development --config webpack.cli.config.js",
-    "build:main": "webpack -w --env development --config webpack.main.config.js"
+    "build": "exitzero npx webpack --env production --config webpack.config.js",
+    "dev": "webpack -w --env development --config webpack.config.js"
   },
   "homepage": "https://google.com",
   "repository": "",

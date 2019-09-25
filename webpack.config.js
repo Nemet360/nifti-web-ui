@@ -17,6 +17,10 @@ module.exports = env => [
         path : path.resolve(__dirname, env),
       },
 
+      optimization: {
+        noEmitOnErrors: false,
+      },
+
       resolve: {
         extensions: [".ts", ".tsx", ".js", ".json", ".css"],
       },
